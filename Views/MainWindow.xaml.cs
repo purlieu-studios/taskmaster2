@@ -23,6 +23,12 @@ public partial class MainWindow : Window
                 {
                     taskListViewModel.SelectedProject = mainViewModel.SelectedProject;
                 }
+
+                // Refresh task list when LastSavedSpecPath changes (indicates a new spec was saved)
+                if (args.PropertyName == nameof(MainViewModel.LastSavedSpecPath))
+                {
+                    _ = taskListViewModel.RefreshTasksCommand.ExecuteAsync(null);
+                }
             };
 
             // Initialize with current selection
