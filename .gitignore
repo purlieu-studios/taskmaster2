@@ -315,3 +315,7 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# TaskMaster - Keep SQLite database local but track catalog JSONs
+*.db
+!catalog/*.json

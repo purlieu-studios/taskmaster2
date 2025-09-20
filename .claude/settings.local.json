@@ -4,7 +4,11 @@
       "WebSearch",
       "Read(//f/MyEcs/task-master/**)",
       "Bash(where claude)",
-      "Bash(claude --print)"
+      "Bash(claude --print)",
+      "Read(//f/exampleTask/.claude/**)",
+      "Bash(git checkout:*)",
+      "Bash(gh auth:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

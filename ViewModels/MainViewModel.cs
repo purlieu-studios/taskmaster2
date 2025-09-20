@@ -89,6 +89,16 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _panelScope = "src/";
 
+    // Catalog Export Settings
+    [ObservableProperty]
+    private bool _autoExportCatalogOnSave = true;
+
+    [ObservableProperty]
+    private bool _enablePerProjectCatalogs = false;
+
+    [ObservableProperty]
+    private string _catalogExportPath = "catalog";
+
     private ClaudeInferenceResponse? _lastInference;
 
     public MainViewModel()
@@ -254,6 +264,12 @@ public partial class MainViewModel : ObservableObject
 
                 InferenceStatus = "Processing response...";
 
+                // Update Summary with expanded version if available
+                if (!string.IsNullOrWhiteSpace(_lastInference.ExpandedSummary))
+                {
+                    Summary = _lastInference.ExpandedSummary;
+                }
+
                 Type = _lastInference.Type;
                 ScopePaths = JsonConvert.SerializeObject(_lastInference.ScopePaths, Formatting.Indented);
                 AcceptanceCriteria = JsonConvert.SerializeObject(_lastInference.AcceptanceCriteria, Formatting.Indented);
@@ -375,6 +391,39 @@ public partial class MainViewModel : ObservableObject
             var filePath = await _specFileService.SaveSpecToFileAsync(taskSpec, SelectedProject, RepoRoot);
             LastSavedSpecPath = filePath;
 
+            // Auto-export catalog to Git repo if enabled and configured
+            if (AutoExportCatalogOnSave && !string.IsNullOrWhiteSpace(RepoRoot) && Directory.Exists(RepoRoot))
+            {
+                try
+                {
+                    LoggingService.LogInfo("Auto-exporting catalog to Git repo", "MainViewModel");
+
+                    // Get all projects with their tasks for catalog export
+                    var projectsWithTasks = new List<Project>();
+                    foreach (var project in Projects)
+                    {
+                        var fullProject = await _databaseService.GetProjectByIdAsync(project.Id);
+                        if (fullProject != null)
+                        {
+                            fullProject.Tasks = await _databaseService.GetRecentTasksAsync(project.Id, 1000);
+                            projectsWithTasks.Add(fullProject);
+                        }
+                    }
+
+                    await _specFileService.SaveCatalogToRepoAsync(projectsWithTasks, RepoRoot, CatalogExportPath, EnablePerProjectCatalogs);
+                    LoggingService.LogInfo("Catalog auto-exported successfully", "MainViewModel");
+                }
+                catch (Exception catalogEx)
+                {
+                    LoggingService.LogError("Failed to auto-export catalog", catalogEx, "MainViewModel");
+                    // Don't fail the entire save operation for catalog export issues
+                }
+            }
+            else if (!AutoExportCatalogOnSave)
+            {
+                LoggingService.LogInfo("Catalog auto-export is disabled", "MainViewModel");
+            }
+
             MessageBox.Show($"Spec saved successfully!\nFile: {filePath}\nTask: #{taskNumber}",
                 "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -397,6 +446,10 @@ public partial class MainViewModel : ObservableObject
     private async Task RunPanelAsync()
     {
         if (string.IsNullOrEmpty(LastSavedSpecPath))
+            return;
+
+        // Run prerequisite validation first
+        if (!await ValidatePrerequisitesAsync())
             return;
 
         try
@@ -439,6 +492,10 @@ public partial class MainViewModel : ObservableObject
     private async Task RunUpdateAsync()
     {
         if (string.IsNullOrEmpty(LastSavedSpecPath))
+            return;
+
+        // Run prerequisite validation first
+        if (!await ValidatePrerequisitesAsync())
             return;
 
         try
@@ -565,8 +622,10 @@ public partial class MainViewModel : ObservableObject
                     "The following directories and files were created:\n" +
                     "- docs/specs/ (for task specifications)\n" +
                     "- docs/decisions/ (for design decisions)\n" +
+                    "- catalog/ (Git-tracked catalog JSON snapshots)\n" +
                     "- .claude/ (slash commands)\n" +
-                    "- CLAUDE.md (project instructions template)",
+                    "- CLAUDE.md (project instructions template)\n" +
+                    "- catalog/README.md (catalog documentation)",
                     "Project Setup Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
@@ -643,6 +702,52 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to import project template: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportCatalogAsync()
+    {
+        try
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                Title = "Import TaskMaster Catalog",
+                InitialDirectory = !string.IsNullOrWhiteSpace(RepoRoot) ? Path.Combine(RepoRoot, "catalog") : null
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                LoggingService.LogInfo($"Importing catalog from: {dialog.FileName}", "MainViewModel");
+
+                var catalogJson = await File.ReadAllTextAsync(dialog.FileName);
+                var success = await _databaseService.ImportCatalogAsync(catalogJson);
+
+                if (success)
+                {
+                    // Refresh the projects list
+                    LoadProjectsAsync();
+
+                    MessageBox.Show("Catalog imported successfully!\n\nProjects and tasks have been synchronized with your local database.",
+                        "Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    LoggingService.LogInfo("Catalog import completed successfully", "MainViewModel");
+                }
+                else
+                {
+                    MessageBox.Show("Failed to import catalog. Please check the file format and try again.",
+                        "Import Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                    LoggingService.LogError("Catalog import failed", null, "MainViewModel");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Exception during catalog import", ex, "MainViewModel");
+            MessageBox.Show($"Failed to import catalog: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -766,5 +871,63 @@ public partial class MainViewModel : ObservableObject
         InferenceStatus = "Ready to infer";
         LastSavedSpecPath = null;
         _lastInference = null;
+    }
+
+    private async Task<bool> ValidatePrerequisitesAsync()
+    {
+        try
+        {
+            LoggingService.LogInfo("Running prerequisite validation", "MainViewModel");
+
+            if (string.IsNullOrWhiteSpace(RepoRoot))
+            {
+                MessageBox.Show("Repository root is required for panel/update operations.",
+                    "Missing Repository Root", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(ClaudeMdPath))
+            {
+                MessageBox.Show("CLAUDE.md path is required for panel/update operations.",
+                    "Missing CLAUDE.md", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            // Run GuardrailsService preflight validation
+            var preflightResult = await GuardrailsService.ValidatePreflightChecksAsync(
+                LastSavedSpecPath ?? "", ClaudeMdPath, RepoRoot);
+
+            if (!preflightResult.IsValid)
+            {
+                var errorMessage = "Prerequisites validation failed:\n\n" +
+                    string.Join("\n", preflightResult.Errors);
+
+                if (preflightResult.Warnings.Any())
+                {
+                    errorMessage += "\n\nWarnings:\n" + string.Join("\n", preflightResult.Warnings);
+                }
+
+                var result = MessageBox.Show(
+                    errorMessage + "\n\nDo you want to continue anyway?",
+                    "Prerequisites Check Failed",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes)
+                {
+                    return false;
+                }
+            }
+
+            LoggingService.LogInfo("Prerequisites validation completed", "MainViewModel");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Error during prerequisites validation", ex, "MainViewModel");
+            MessageBox.Show($"Prerequisites validation failed: {ex.Message}",
+                "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
     }
 }

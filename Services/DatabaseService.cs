@@ -26,6 +26,7 @@ public class DatabaseService
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name TEXT NOT NULL UNIQUE,
                 TaskCount INTEGER NOT NULL DEFAULT 0,
+                NextNumber INTEGER NOT NULL DEFAULT 1,
                 LastUpdated TEXT NOT NULL,
                 ClaudeMdPath TEXT,
                 Metadata TEXT
@@ -74,6 +75,59 @@ public class DatabaseService
 
         command.CommandText = createDraftTasksTable;
         command.ExecuteNonQuery();
+
+        // Add indexes for performance
+        var createIndexes = @"
+            CREATE INDEX IF NOT EXISTS idx_taskspecs_project_number ON TaskSpecs(ProjectId, Number);
+            CREATE INDEX IF NOT EXISTS idx_taskspecs_status ON TaskSpecs(Status);
+            CREATE INDEX IF NOT EXISTS idx_drafttasks_project ON DraftTasks(ProjectId);
+        ";
+        command.CommandText = createIndexes;
+        command.ExecuteNonQuery();
+
+        // Migrate existing data: add NextNumber column if it doesn't exist
+        MigrateToNextNumber(connection);
+    }
+
+    private void MigrateToNextNumber(SqliteConnection connection)
+    {
+        try
+        {
+            // Check if NextNumber column exists
+            var checkColumnQuery = "PRAGMA table_info(Projects)";
+            using var checkCommand = new SqliteCommand(checkColumnQuery, connection);
+            using var reader = checkCommand.ExecuteReader();
+
+            bool hasNextNumber = false;
+            while (reader.Read())
+            {
+                if (reader.GetString(1) == "NextNumber")
+                {
+                    hasNextNumber = true;
+                    break;
+                }
+            }
+            reader.Close();
+
+            if (!hasNextNumber)
+            {
+                // Add NextNumber column and initialize it
+                var addColumnQuery = "ALTER TABLE Projects ADD COLUMN NextNumber INTEGER NOT NULL DEFAULT 1";
+                using var addCommand = new SqliteCommand(addColumnQuery, connection);
+                addCommand.ExecuteNonQuery();
+
+                // Initialize NextNumber based on existing TaskCount + 1
+                var updateNextNumberQuery = "UPDATE Projects SET NextNumber = TaskCount + 1";
+                using var updateCommand = new SqliteCommand(updateNextNumberQuery, connection);
+                updateCommand.ExecuteNonQuery();
+
+                LoggingService.LogInfo("Migrated database to include NextNumber field", "DatabaseService");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to migrate NextNumber field", ex, "DatabaseService");
+        }
     }
 
     public async Task<List<Project>> GetProjectsAsync()
@@ -94,6 +148,7 @@ public class DatabaseService
                 Id = reader.GetInt32(reader.GetOrdinal("Id")),
                 Name = reader.GetString(reader.GetOrdinal("Name")),
                 TaskCount = reader.GetInt32(reader.GetOrdinal("TaskCount")),
+                NextNumber = reader.GetInt32(reader.GetOrdinal("NextNumber")),
                 LastUpdated = DateTime.Parse(reader.GetString(reader.GetOrdinal("LastUpdated"))),
                 ClaudeMdPath = reader.IsDBNull(reader.GetOrdinal("ClaudeMdPath")) ? null : reader.GetString(reader.GetOrdinal("ClaudeMdPath")),
                 Metadata = reader.IsDBNull(reader.GetOrdinal("Metadata")) ? null : reader.GetString(reader.GetOrdinal("Metadata"))
@@ -135,8 +190,8 @@ public class DatabaseService
         await connection.OpenAsync();
 
         var query = @"
-            INSERT INTO Projects (Name, TaskCount, LastUpdated, ClaudeMdPath)
-            VALUES (@Name, 0, @LastUpdated, @ClaudeMdPath);
+            INSERT INTO Projects (Name, TaskCount, NextNumber, LastUpdated, ClaudeMdPath)
+            VALUES (@Name, 0, 1, @LastUpdated, @ClaudeMdPath);
             SELECT last_insert_rowid();";
 
         using var command = new SqliteCommand(query, connection);
@@ -187,26 +242,26 @@ public class DatabaseService
 
         try
         {
-            // Get current task count and increment
-            var query = "SELECT TaskCount FROM Projects WHERE Id = @ProjectId";
+            // Get current NextNumber and increment it atomically
+            var query = "SELECT NextNumber FROM Projects WHERE Id = @ProjectId";
             using var command = new SqliteCommand(query, connection, transaction);
             command.Parameters.AddWithValue("@ProjectId", projectId);
 
-            var currentCount = Convert.ToInt32(await command.ExecuteScalarAsync());
-            var nextNumber = currentCount + 1;
+            var currentNextNumber = Convert.ToInt32(await command.ExecuteScalarAsync());
+            var reservedNumber = currentNextNumber;
 
-            // Update task count
-            var updateQuery = "UPDATE Projects SET TaskCount = @TaskCount, LastUpdated = @LastUpdated WHERE Id = @ProjectId";
+            // Update NextNumber, TaskCount, and LastUpdated atomically
+            var updateQuery = "UPDATE Projects SET NextNumber = @NextNumber, TaskCount = TaskCount + 1, LastUpdated = @LastUpdated WHERE Id = @ProjectId";
             command.CommandText = updateQuery;
             command.Parameters.Clear();
-            command.Parameters.AddWithValue("@TaskCount", nextNumber);
+            command.Parameters.AddWithValue("@NextNumber", currentNextNumber + 1);
             command.Parameters.AddWithValue("@LastUpdated", DateTime.UtcNow.ToString("O"));
             command.Parameters.AddWithValue("@ProjectId", projectId);
 
             await command.ExecuteNonQueryAsync();
             transaction.Commit();
 
-            return nextNumber;
+            return reservedNumber;
         }
         catch
         {
@@ -330,5 +385,187 @@ public class DatabaseService
             SuggestedTasks = reader.IsDBNull(reader.GetOrdinal("SuggestedTasks")) ? null : reader.GetString(reader.GetOrdinal("SuggestedTasks")),
             NextSteps = reader.IsDBNull(reader.GetOrdinal("NextSteps")) ? null : reader.GetString(reader.GetOrdinal("NextSteps"))
         };
+    }
+
+    public async Task<List<TaskSpec>> GetTasksByProjectIdAsync(int projectId)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var tasks = new List<TaskSpec>();
+        var query = "SELECT * FROM TaskSpecs WHERE ProjectId = @ProjectId ORDER BY Number DESC";
+
+        using var command = new SqliteCommand(query, connection);
+        command.Parameters.AddWithValue("@ProjectId", projectId);
+
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            tasks.Add(MapTaskSpecFromReader(reader));
+        }
+
+        return tasks;
+    }
+
+
+    public async Task<bool> ImportCatalogAsync(string catalogJson)
+    {
+        try
+        {
+            LoggingService.LogInfo("Starting catalog import", "DatabaseService");
+
+            var catalogData = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType(catalogJson, new
+            {
+                version = "",
+                exportedAt = DateTime.MinValue,
+                projects = new[]
+                {
+                    new
+                    {
+                        id = 0,
+                        name = "",
+                        claudeMdPath = "",
+                        tasks = new[]
+                        {
+                            new
+                            {
+                                id = 0,
+                                title = "",
+                                slug = "",
+                                type = "",
+                                status = "",
+                                created = DateTime.MinValue,
+                                summary = "",
+                                nonGoals = "",
+                                notes = "",
+                                acceptanceCriteria = new object[0],
+                                testPlan = new object[0],
+                                scopePaths = new object[0],
+                                requiredDocs = new object[0]
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (catalogData == null || catalogData.projects == null)
+            {
+                LoggingService.LogError("Invalid catalog format", null, "DatabaseService");
+                return false;
+            }
+
+            LoggingService.LogInfo($"Importing catalog with {catalogData.projects.Length} projects", "DatabaseService");
+
+            using var connection = new SqliteConnection(_connectionString);
+            await connection.OpenAsync();
+
+            foreach (var projectData in catalogData.projects)
+            {
+                // Check if project already exists
+                var existingProject = await GetProjectByNameAsync(projectData.name);
+                int projectId;
+
+                if (existingProject == null)
+                {
+                    // Create new project
+                    var newProject = await CreateProjectAsync(projectData.name, projectData.claudeMdPath);
+                    projectId = newProject.Id;
+                    LoggingService.LogInfo($"Created new project: {projectData.name}", "DatabaseService");
+                }
+                else
+                {
+                    projectId = existingProject.Id;
+                    LoggingService.LogInfo($"Using existing project: {projectData.name}", "DatabaseService");
+                }
+
+                // Import tasks for this project
+                if (projectData.tasks != null)
+                {
+                    foreach (var taskData in projectData.tasks)
+                    {
+                        await ImportTaskAsync(connection, projectId, taskData);
+                    }
+                }
+            }
+
+            LoggingService.LogInfo("Catalog import completed successfully", "DatabaseService");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to import catalog", ex, "DatabaseService");
+            return false;
+        }
+    }
+
+    private async Task<Project?> GetProjectByNameAsync(string name)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM Projects WHERE Name = @Name";
+        command.Parameters.AddWithValue("@Name", name);
+
+        using var reader = await command.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return new Project
+            {
+                Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                Name = reader.GetString(reader.GetOrdinal("Name")),
+                TaskCount = reader.GetInt32(reader.GetOrdinal("TaskCount")),
+                LastUpdated = DateTime.Parse(reader.GetString(reader.GetOrdinal("LastUpdated"))),
+                ClaudeMdPath = reader.IsDBNull(reader.GetOrdinal("ClaudeMdPath")) ? null : reader.GetString(reader.GetOrdinal("ClaudeMdPath")),
+                Metadata = reader.IsDBNull(reader.GetOrdinal("Metadata")) ? null : reader.GetString(reader.GetOrdinal("Metadata"))
+            };
+        }
+
+        return null;
+    }
+
+    private async Task ImportTaskAsync(SqliteConnection connection, int projectId, dynamic taskData)
+    {
+        try
+        {
+            // Check if task already exists (by project + number)
+            var checkCommand = connection.CreateCommand();
+            checkCommand.CommandText = "SELECT COUNT(*) FROM Tasks WHERE ProjectId = @ProjectId AND Number = @Number";
+            checkCommand.Parameters.AddWithValue("@ProjectId", projectId);
+            checkCommand.Parameters.AddWithValue("@Number", taskData.id);
+
+            var exists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+            if (exists)
+            {
+                LoggingService.LogInfo($"Skipping existing task #{taskData.id}: {taskData.title}", "DatabaseService");
+                return;
+            }
+
+            // Create new task
+            var taskSpec = new TaskSpec
+            {
+                ProjectId = projectId,
+                Number = taskData.id,
+                Title = taskData.title ?? "",
+                Slug = taskData.slug ?? "",
+                Type = taskData.type ?? "feature",
+                Status = Enum.TryParse<TaskMaster.Models.TaskStatus>(taskData.status?.ToString(), true, out TaskMaster.Models.TaskStatus status) ? status : TaskMaster.Models.TaskStatus.Todo,
+                Created = taskData.created != DateTime.MinValue ? taskData.created : DateTime.UtcNow,
+                Summary = taskData.summary ?? "",
+                NonGoals = taskData.nonGoals?.ToString(),
+                Notes = taskData.notes?.ToString(),
+                AcceptanceCriteria = Newtonsoft.Json.JsonConvert.SerializeObject(taskData.acceptanceCriteria ?? new object[0]),
+                TestPlan = Newtonsoft.Json.JsonConvert.SerializeObject(taskData.testPlan ?? new object[0]),
+                ScopePaths = Newtonsoft.Json.JsonConvert.SerializeObject(taskData.scopePaths ?? new object[0]),
+                RequiredDocs = Newtonsoft.Json.JsonConvert.SerializeObject(taskData.requiredDocs ?? new object[0])
+            };
+
+            await SaveTaskSpecAsync(taskSpec);
+            LoggingService.LogInfo($"Imported task #{taskData.id}: {taskData.title}", "DatabaseService");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to import task #{taskData.id}: {taskData.title}", ex, "DatabaseService");
+        }
     }
 }

@@ -11,6 +11,8 @@ public class Project
 
     public int TaskCount { get; set; } = 0;
 
+    public int NextNumber { get; set; } = 1; // Next sequential number for new tasks
+
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
 
     public string? ClaudeMdPath { get; set; }
