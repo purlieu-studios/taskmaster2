@@ -83,6 +83,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string? _lastSavedSpecPath;
 
+    [ObservableProperty]
+    private int _panelRounds = 2;
+
+    [ObservableProperty]
+    private string _panelScope = "src/";
+
     private ClaudeInferenceResponse? _lastInference;
 
     public MainViewModel()
@@ -125,7 +131,7 @@ public partial class MainViewModel : ObservableObject
             InferSpecCommand.NotifyCanExecuteChanged();
         }
 
-        if (e.PropertyName == nameof(LastSavedSpecPath))
+        if (e.PropertyName == nameof(LastSavedSpecPath) || e.PropertyName == nameof(ClaudeMdPath))
         {
             RunPanelCommand.NotifyCanExecuteChanged();
             RunUpdateCommand.NotifyCanExecuteChanged();
@@ -395,22 +401,29 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            var success = await _claudeService.RunPanelAsync(LastSavedSpecPath, RepoRoot);
+            LoggingService.LogInfo("Starting panel execution", "MainViewModel");
 
-            if (success)
+            // Use the new PanelService instead of direct Claude commands
+            var panelResult = await _claudeService.RunPanelServiceAsync(LastSavedSpecPath, RepoRoot, PanelRounds, PanelScope);
+
+            if (panelResult.Success)
             {
-                var decisionPath = _specFileService.GetDecisionFilePath(LastSavedSpecPath);
-                MessageBox.Show($"Panel completed successfully!\nDecision file: {decisionPath}",
-                    "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Panel completed successfully!\n\nDecision file: {panelResult.DecisionPath}\nSlug: {panelResult.Slug}",
+                    "Panel Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                LoggingService.LogInfo($"Panel completed successfully for: {LastSavedSpecPath}", "MainViewModel");
             }
             else
             {
-                MessageBox.Show("Panel command failed. Check Claude CLI output.",
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Panel execution failed:\n\n{panelResult.ErrorMessage}",
+                    "Panel Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                LoggingService.LogError($"Panel failed: {panelResult.ErrorMessage}", null, "MainViewModel");
             }
         }
         catch (Exception ex)
         {
+            LoggingService.LogError("Exception in RunPanelAsync", ex, "MainViewModel");
             MessageBox.Show($"Failed to run panel: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
@@ -418,7 +431,8 @@ public partial class MainViewModel : ObservableObject
 
     private bool CanRunPanel()
     {
-        return !string.IsNullOrEmpty(LastSavedSpecPath) && File.Exists(LastSavedSpecPath);
+        return !string.IsNullOrEmpty(LastSavedSpecPath) && File.Exists(LastSavedSpecPath) &&
+               !string.IsNullOrEmpty(ClaudeMdPath) && File.Exists(ClaudeMdPath);
     }
 
     [RelayCommand(CanExecute = nameof(CanRunUpdate))]
@@ -438,7 +452,7 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
-            var success = await _claudeService.RunUpdateAsync(LastSavedSpecPath, RepoRoot);
+            var success = await _claudeService.RunUpdateAsync(LastSavedSpecPath, RepoRoot, ClaudeMdPath);
 
             if (success)
             {
@@ -463,8 +477,33 @@ public partial class MainViewModel : ObservableObject
         if (string.IsNullOrEmpty(LastSavedSpecPath) || !File.Exists(LastSavedSpecPath))
             return false;
 
+        if (string.IsNullOrEmpty(ClaudeMdPath) || !File.Exists(ClaudeMdPath))
+            return false;
+
         var decisionPath = _specFileService.GetDecisionFilePath(LastSavedSpecPath);
         return File.Exists(decisionPath);
+    }
+
+    [RelayCommand]
+    private async Task ExportTemplateAsync()
+    {
+        try
+        {
+            LoggingService.LogInfo("Opening export template dialog", "MainViewModel");
+
+            var templateService = new TemplateService(_databaseService);
+            var viewModel = new TemplateExportViewModel(templateService, RepoRoot);
+            var dialog = new Views.ExportTemplateDialog(viewModel);
+
+            dialog.Owner = Application.Current.MainWindow;
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Error opening export template dialog", ex, "MainViewModel");
+            MessageBox.Show($"Failed to open export template dialog: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     [RelayCommand]
