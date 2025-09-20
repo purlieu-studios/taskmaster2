@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Read(//f/MyEcs/task-master/**)",
+      "Bash(where claude)",
+      "Bash(claude --print)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

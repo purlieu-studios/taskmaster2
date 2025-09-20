@@ -1,0 +1,67 @@
+<Window x:Class="TaskMaster.Views.ErrorReportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Error Details" Height="500" Width="700"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Error Title -->
+        <TextBlock Grid.Row="0" Text="{Binding ErrorTitle}" FontSize="16" FontWeight="Bold"
+                   Foreground="Red" Margin="0,0,0,10"/>
+
+        <!-- Error Message -->
+        <TextBlock Grid.Row="1" Text="{Binding ErrorMessage}" TextWrapping="Wrap"
+                   Margin="0,0,0,15"/>
+
+        <!-- Details TabControl -->
+        <TabControl Grid.Row="2" Margin="0,0,0,15">
+            <TabItem Header="Solutions">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBlock Text="{Binding Solutions}" TextWrapping="Wrap"
+                               FontFamily="Segoe UI" Margin="10"/>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Recent Logs">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Button Grid.Row="0" Content="Refresh Logs" HorizontalAlignment="Right"
+                            Click="RefreshLogs_Click" Margin="0,0,0,5"/>
+
+                    <TextBox Grid.Row="1" Text="{Binding RecentLogs}" IsReadOnly="True"
+                             FontFamily="Consolas" FontSize="10" TextWrapping="NoWrap"
+                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="System Info">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBlock Text="{Binding SystemInfo}" FontFamily="Consolas" FontSize="10"
+                               Margin="10"/>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
+            <Button Content="Copy Error Details" Click="CopyError_Click" Margin="0,0,10,0" Width="120"/>
+            <Button Content="Open Log File" Click="OpenLogFile_Click" Margin="0,0,10,0" Width="100"/>
+            <Button Content="Test Claude CLI" Click="TestClaude_Click" Margin="0,0,10,0" Width="110"/>
+        </StackPanel>
+
+        <!-- Close Button -->
+        <Button Grid.Row="4" Content="Close" IsDefault="True" Click="Close_Click"
+                HorizontalAlignment="Center" Width="80"/>
+    </Grid>
+</Window>

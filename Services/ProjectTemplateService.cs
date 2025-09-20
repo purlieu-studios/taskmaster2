@@ -1,0 +1,198 @@
+using System.Text;
+using TaskMaster.Models;
+
+namespace TaskMaster.Services;
+
+public static class ProjectTemplateService
+{
+    public static async Task<bool> GenerateProjectStructureAsync(string repoRoot, string projectName)
+    {
+        try
+        {
+            // Create necessary directories
+            var docsDir = Path.Combine(repoRoot, "docs");
+            var specsDir = Path.Combine(docsDir, "specs");
+            var decisionsDir = Path.Combine(docsDir, "decisions");
+            var claudeDir = Path.Combine(repoRoot, ".claude");
+
+            Directory.CreateDirectory(specsDir);
+            Directory.CreateDirectory(decisionsDir);
+            Directory.CreateDirectory(claudeDir);
+
+            // Generate base CLAUDE.md template
+            await GenerateClaudeMdTemplateAsync(repoRoot, projectName);
+
+            // Copy slash commands to project
+            await CopySlashCommandsAsync(claudeDir);
+
+            // Generate README for the docs structure
+            await GenerateDocsReadmeAsync(docsDir);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error generating project structure: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static async Task GenerateClaudeMdTemplateAsync(string repoRoot, string projectName)
+    {
+        var claudeMdPath = Path.Combine(repoRoot, "CLAUDE.md");
+
+        if (File.Exists(claudeMdPath))
+        {
+            // Don't overwrite existing CLAUDE.md
+            return;
+        }
+
+        var template = new StringBuilder();
+        template.AppendLine($"# {projectName} - Project Instructions");
+        template.AppendLine();
+        template.AppendLine("## Project Overview");
+        template.AppendLine($"This document contains instructions and context for the {projectName} project.");
+        template.AppendLine("It is used by TaskMaster to generate high-quality task specifications.");
+        template.AppendLine();
+        template.AppendLine("## Architecture");
+        template.AppendLine("Describe your project's architecture, frameworks, and key patterns here.");
+        template.AppendLine();
+        template.AppendLine("## Development Guidelines");
+        template.AppendLine("- Code style preferences");
+        template.AppendLine("- Testing requirements");
+        template.AppendLine("- Documentation standards");
+        template.AppendLine("- Security considerations");
+        template.AppendLine();
+        template.AppendLine("## Key Files and Directories");
+        template.AppendLine("- `/src/` - Source code");
+        template.AppendLine("- `/tests/` - Test files");
+        template.AppendLine("- `/docs/` - Documentation");
+        template.AppendLine("- `/docs/specs/` - Task specifications (managed by TaskMaster)");
+        template.AppendLine("- `/docs/decisions/` - Design decisions (managed by TaskMaster)");
+        template.AppendLine();
+        template.AppendLine("## Dependencies");
+        template.AppendLine("List key dependencies and their purposes here.");
+        template.AppendLine();
+        template.AppendLine("## Getting Started");
+        template.AppendLine("Instructions for setting up the development environment.");
+
+        await File.WriteAllTextAsync(claudeMdPath, template.ToString());
+    }
+
+    private static async Task CopySlashCommandsAsync(string claudeDir)
+    {
+        var sourceDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".claude");
+
+        if (!Directory.Exists(sourceDir))
+        {
+            // If running from development, look relative to the executable
+            sourceDir = Path.Combine(Directory.GetCurrentDirectory(), ".claude");
+        }
+
+        if (Directory.Exists(sourceDir))
+        {
+            foreach (var file in Directory.GetFiles(sourceDir, "*.md"))
+            {
+                var fileName = Path.GetFileName(file);
+                var destPath = Path.Combine(claudeDir, fileName);
+
+                if (!File.Exists(destPath))
+                {
+                    await File.WriteAllTextAsync(destPath, await File.ReadAllTextAsync(file));
+                }
+            }
+        }
+    }
+
+    private static async Task GenerateDocsReadmeAsync(string docsDir)
+    {
+        var readmePath = Path.Combine(docsDir, "README.md");
+
+        if (File.Exists(readmePath))
+        {
+            return; // Don't overwrite existing README
+        }
+
+        var readme = new StringBuilder();
+        readme.AppendLine("# Documentation");
+        readme.AppendLine();
+        readme.AppendLine("This directory contains project documentation managed by TaskMaster.");
+        readme.AppendLine();
+        readme.AppendLine("## Structure");
+        readme.AppendLine();
+        readme.AppendLine("- `specs/` - Task specifications");
+        readme.AppendLine("  - Files named `YYYYMMDD-{slug}.md`");
+        readme.AppendLine("  - Generated by TaskMaster WPF application");
+        readme.AppendLine("  - Contains detailed task requirements and acceptance criteria");
+        readme.AppendLine();
+        readme.AppendLine("- `decisions/` - Design decisions");
+        readme.AppendLine("  - Files named `YYYYMMDD-{slug}.md` (matching spec files)");
+        readme.AppendLine("  - Generated by Claude CLI panel commands");
+        readme.AppendLine("  - Contains architectural decisions and implementation guidance");
+        readme.AppendLine();
+        readme.AppendLine("## Workflow");
+        readme.AppendLine();
+        readme.AppendLine("1. Create task spec using TaskMaster WPF app");
+        readme.AppendLine("2. Run panel command to generate decision document");
+        readme.AppendLine("3. Run update command to implement the task");
+        readme.AppendLine("4. Review and merge the resulting pull request");
+
+        await File.WriteAllTextAsync(readmePath, readme.ToString());
+    }
+
+    public static async Task<string> GenerateProjectExportAsync(Project project, string targetPath)
+    {
+        try
+        {
+            var exportData = new
+            {
+                project = new
+                {
+                    name = project.Name,
+                    taskCount = project.TaskCount,
+                    lastUpdated = project.LastUpdated,
+                    claudeMdPath = project.ClaudeMdPath,
+                    metadata = project.Metadata
+                },
+                exportedAt = DateTime.UtcNow,
+                taskMasterVersion = "1.0.0"
+            };
+
+            var json = Newtonsoft.Json.JsonConvert.SerializeObject(exportData, Newtonsoft.Json.Formatting.Indented);
+            await File.WriteAllTextAsync(targetPath, json);
+
+            return targetPath;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to export project: {ex.Message}", ex);
+        }
+    }
+
+    public static async Task<Project?> ImportProjectAsync(string filePath)
+    {
+        try
+        {
+            var json = await File.ReadAllTextAsync(filePath);
+            var data = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(json);
+
+            if (data?.project == null)
+            {
+                throw new InvalidOperationException("Invalid project export file format");
+            }
+
+            return new Project
+            {
+                Name = data.project.name,
+                TaskCount = data.project.taskCount ?? 0,
+                LastUpdated = data.project.lastUpdated ?? DateTime.UtcNow,
+                ClaudeMdPath = data.project.claudeMdPath,
+                Metadata = data.project.metadata
+            };
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to import project: {ex.Message}", ex);
+        }
+    }
+}
