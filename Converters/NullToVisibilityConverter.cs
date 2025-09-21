@@ -9,9 +9,17 @@ public class NullToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        return value == null || string.IsNullOrWhiteSpace(value.ToString())
-            ? Visibility.Collapsed
-            : Visibility.Visible;
+        var isNull = value == null || (value is string str && string.IsNullOrWhiteSpace(str));
+        var inverse = parameter?.ToString() == "Inverse";
+
+        if (inverse)
+        {
+            return isNull ? Visibility.Visible : Visibility.Collapsed;
+        }
+        else
+        {
+            return isNull ? Visibility.Collapsed : Visibility.Visible;
+        }
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

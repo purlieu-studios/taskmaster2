@@ -188,12 +188,56 @@ This ensures JSON exports are **human-readable**, **diff-friendly**, and act as 
 
 * User must be **logged in** to Claude CLI (no API key), and aware of any session/time limits. The app should surface CLI errors (e.g., time cap reached) verbatim.
 
-**Safety/Determinism knobs** (recommended CLI flags the app will use if available):
+**Claude CLI Guardrails — Safety Contract**:
 
-* `--dry-run` (preview changes)
-* `--small-commits` (enforce one-plan-step-per-commit)
-* `--no-force` (avoid destructive git ops)
-* `--max-diff-lines` (guardrails)
+The WPF app enforces **non-negotiable guardrails** to prevent runaway behavior, unsafe Git operations, and non-deterministic outputs. These guardrails ensure every change is small, reviewable, and reversible.
+
+**Non-Negotiable Default Flags** (hardwired into all CLI invocations):
+
+* `--dry-run` (preview mode by default; user must explicitly disable to commit changes)
+* `--small-commits` (enforce one step per commit)
+* `--no-force` (block destructive Git commands like force-push)
+* `--max-diff-lines=200` (cap patch size per commit)
+
+These flags cannot be unchecked from the UI — they are hardwired defaults for safety.
+
+**Deterministic Output Contract**:
+
+After a successful run, the CLI must output:
+* A **decision file** in `docs/decisions/YYYYMMDD-<slug>.md` (for panel runs)
+* A **branch** named `task/<Number>-<slug>`
+* A **PR title** formatted `[#<Number>] <Title>`
+* A **PR body** populated with the spec contents
+
+The WPF app validates these outputs. If any artifact is missing or malformed, the run is marked as failed.
+
+**Enhanced Preflight Checks** (enforced before CLI execution):
+
+* **Clean Git tree**: no uncommitted changes (auto-stash offered if dirty)
+* **Writable remote**: origin available and authenticated via GitHub CLI
+* **Spec file exists**: referenced markdown spec is present and valid
+* **Decision file exists**: required for `/update-spec` invocations
+* **CLAUDE.md path valid**: reference doc exists and is readable
+* **Disk space check**: sufficient space for repo operations
+* **Network connectivity**: GitHub API reachable
+
+**Post-Run Validation** (enforced after CLI execution):
+
+* Inspect generated files for correct naming/location
+* Ensure Git history shows atomic commits under the correct branch
+* Verify PR metadata matches the spec
+* Validate decision file structure and content
+
+If validation fails, the app alerts the user and rolls back any partial changes.
+
+**Extensibility** (future guardrails):
+
+* `--require-tests` (block PR if no test files touched)
+* `--lint` (auto-run linter; block if errors)
+* `--schema-validate` (validate spec/decision JSON structure)
+* `--max-execution-time` (timeout for long-running operations)
+
+**Summary**: Guardrails are not optional. They guarantee every Claude CLI run from the WPF app is **safe, reviewable, deterministic, and reversible**.
 
 ---
 

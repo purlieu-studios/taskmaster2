@@ -11,6 +11,7 @@ public class ClaudeInferenceRequest
 
 public class ClaudeInferenceResponse
 {
+    public string ExpandedSummary { get; set; } = string.Empty;
     public string Type { get; set; } = "feature";
     public List<string> ScopePaths { get; set; } = new();
     public List<string> AcceptanceCriteria { get; set; } = new();

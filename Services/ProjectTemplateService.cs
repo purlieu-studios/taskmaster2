@@ -9,190 +9,210 @@ public static class ProjectTemplateService
     {
         try
         {
-            // Create necessary directories
-            var docsDir = Path.Combine(repoRoot, "docs");
-            var specsDir = Path.Combine(docsDir, "specs");
-            var decisionsDir = Path.Combine(docsDir, "decisions");
-            var claudeDir = Path.Combine(repoRoot, ".claude");
+            LoggingService.LogInfo($"Generating project structure for {projectName} in {repoRoot}", "ProjectTemplateService");
 
-            Directory.CreateDirectory(specsDir);
-            Directory.CreateDirectory(decisionsDir);
-            Directory.CreateDirectory(claudeDir);
+            if (string.IsNullOrWhiteSpace(repoRoot) || !Directory.Exists(repoRoot))
+            {
+                LoggingService.LogError($"Invalid repo root: {repoRoot}", null, "ProjectTemplateService");
+                return false;
+            }
 
-            // Generate base CLAUDE.md template
-            await GenerateClaudeMdTemplateAsync(repoRoot, projectName);
+            // Create directory structure
+            var directories = new[]
+            {
+                Path.Combine(repoRoot, "docs", "specs"),
+                Path.Combine(repoRoot, "docs", "decisions"),
+                Path.Combine(repoRoot, "catalog"),
+                Path.Combine(repoRoot, ".claude")
+            };
 
-            // Copy slash commands to project
-            await CopySlashCommandsAsync(claudeDir);
+            foreach (var dir in directories)
+            {
+                Directory.CreateDirectory(dir);
+                LoggingService.LogInfo($"Created directory: {dir}", "ProjectTemplateService");
+            }
 
-            // Generate README for the docs structure
-            await GenerateDocsReadmeAsync(docsDir);
+            // Create CLAUDE.md template if it doesn't exist
+            var claudeMdPath = Path.Combine(repoRoot, "CLAUDE.md");
+            if (!File.Exists(claudeMdPath))
+            {
+                await CreateClaudeMdTemplateAsync(claudeMdPath, projectName);
+            }
 
+            // Create .claude/commands.md template if it doesn't exist
+            var commandsPath = Path.Combine(repoRoot, ".claude", "commands.md");
+            if (!File.Exists(commandsPath))
+            {
+                await CreateCommandsTemplateAsync(commandsPath);
+            }
+
+            // Create catalog README if it doesn't exist
+            var catalogReadmePath = Path.Combine(repoRoot, "catalog", "README.md");
+            if (!File.Exists(catalogReadmePath))
+            {
+                await CreateCatalogReadmeAsync(catalogReadmePath);
+            }
+
+            LoggingService.LogInfo($"Project structure generated successfully for {projectName}", "ProjectTemplateService");
             return true;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error generating project structure: {ex.Message}");
+            LoggingService.LogError("Failed to generate project structure", ex, "ProjectTemplateService");
             return false;
         }
     }
 
-    private static async Task GenerateClaudeMdTemplateAsync(string repoRoot, string projectName)
+    private static async Task CreateClaudeMdTemplateAsync(string filePath, string projectName)
     {
-        var claudeMdPath = Path.Combine(repoRoot, "CLAUDE.md");
+        var template = $@"# {projectName}
 
-        if (File.Exists(claudeMdPath))
-        {
-            // Don't overwrite existing CLAUDE.md
-            return;
-        }
+## Project Overview
+Brief description of what this project does and its main purpose.
 
-        var template = new StringBuilder();
-        template.AppendLine($"# {projectName} - Project Instructions");
-        template.AppendLine();
-        template.AppendLine("## Project Overview");
-        template.AppendLine($"This document contains instructions and context for the {projectName} project.");
-        template.AppendLine("It is used by TaskMaster to generate high-quality task specifications.");
-        template.AppendLine();
-        template.AppendLine("## Architecture");
-        template.AppendLine("Describe your project's architecture, frameworks, and key patterns here.");
-        template.AppendLine();
-        template.AppendLine("## Development Guidelines");
-        template.AppendLine("- Code style preferences");
-        template.AppendLine("- Testing requirements");
-        template.AppendLine("- Documentation standards");
-        template.AppendLine("- Security considerations");
-        template.AppendLine();
-        template.AppendLine("## Key Files and Directories");
-        template.AppendLine("- `/src/` - Source code");
-        template.AppendLine("- `/tests/` - Test files");
-        template.AppendLine("- `/docs/` - Documentation");
-        template.AppendLine("- `/docs/specs/` - Task specifications (managed by TaskMaster)");
-        template.AppendLine("- `/docs/decisions/` - Design decisions (managed by TaskMaster)");
-        template.AppendLine();
-        template.AppendLine("## Dependencies");
-        template.AppendLine("List key dependencies and their purposes here.");
-        template.AppendLine();
-        template.AppendLine("## Getting Started");
-        template.AppendLine("Instructions for setting up the development environment.");
+## Architecture
+Describe the overall architecture, key components, and design patterns used.
 
-        await File.WriteAllTextAsync(claudeMdPath, template.ToString());
+## Development Guidelines
+- Coding standards and conventions
+- Testing requirements
+- Documentation standards
+
+## Key Files and Directories
+- `src/` - Main source code
+- `docs/specs/` - Task specifications
+- `docs/decisions/` - Architectural decisions
+- `catalog/` - TaskMaster catalog (Git-tracked JSON snapshots)
+
+## Setup Instructions
+1. Clone the repository
+2. Install dependencies
+3. Configure development environment
+4. Run initial setup
+
+## Important Notes
+- Add any project-specific context that Claude should know
+- Include patterns to follow or avoid
+- Reference key documentation or external resources
+";
+
+        await File.WriteAllTextAsync(filePath, template, Encoding.UTF8);
+        LoggingService.LogInfo($"Created CLAUDE.md template: {filePath}", "ProjectTemplateService");
     }
 
-    private static async Task CopySlashCommandsAsync(string claudeDir)
+    private static async Task CreateCommandsTemplateAsync(string filePath)
     {
-        var sourceDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".claude");
+        var template = @"# Claude Commands
 
-        if (!Directory.Exists(sourceDir))
-        {
-            // If running from development, look relative to the executable
-            sourceDir = Path.Combine(Directory.GetCurrentDirectory(), ".claude");
-        }
+## Panel Commands
+- `/panel-wpf-decide` - Run architectural design panel for a spec
 
-        if (Directory.Exists(sourceDir))
-        {
-            foreach (var file in Directory.GetFiles(sourceDir, "*.md"))
-            {
-                var fileName = Path.GetFileName(file);
-                var destPath = Path.Combine(claudeDir, fileName);
+## Update Commands
+- `/update-wpf-spec` - Implement code based on panel decision
 
-                if (!File.Exists(destPath))
-                {
-                    await File.WriteAllTextAsync(destPath, await File.ReadAllTextAsync(file));
-                }
-            }
-        }
+## Custom Commands
+Add any project-specific Claude commands here.
+";
+
+        await File.WriteAllTextAsync(filePath, template, Encoding.UTF8);
+        LoggingService.LogInfo($"Created commands template: {filePath}", "ProjectTemplateService");
     }
 
-    private static async Task GenerateDocsReadmeAsync(string docsDir)
+    private static async Task CreateCatalogReadmeAsync(string filePath)
     {
-        var readmePath = Path.Combine(docsDir, "README.md");
+        var template = @"# TaskMaster Catalog
 
-        if (File.Exists(readmePath))
-        {
-            return; // Don't overwrite existing README
-        }
+This directory contains Git-tracked JSON snapshots of the TaskMaster catalog.
 
-        var readme = new StringBuilder();
-        readme.AppendLine("# Documentation");
-        readme.AppendLine();
-        readme.AppendLine("This directory contains project documentation managed by TaskMaster.");
-        readme.AppendLine();
-        readme.AppendLine("## Structure");
-        readme.AppendLine();
-        readme.AppendLine("- `specs/` - Task specifications");
-        readme.AppendLine("  - Files named `YYYYMMDD-{slug}.md`");
-        readme.AppendLine("  - Generated by TaskMaster WPF application");
-        readme.AppendLine("  - Contains detailed task requirements and acceptance criteria");
-        readme.AppendLine();
-        readme.AppendLine("- `decisions/` - Design decisions");
-        readme.AppendLine("  - Files named `YYYYMMDD-{slug}.md` (matching spec files)");
-        readme.AppendLine("  - Generated by Claude CLI panel commands");
-        readme.AppendLine("  - Contains architectural decisions and implementation guidance");
-        readme.AppendLine();
-        readme.AppendLine("## Workflow");
-        readme.AppendLine();
-        readme.AppendLine("1. Create task spec using TaskMaster WPF app");
-        readme.AppendLine("2. Run panel command to generate decision document");
-        readme.AppendLine("3. Run update command to implement the task");
-        readme.AppendLine("4. Review and merge the resulting pull request");
+## Files
+- `catalog.json` - Complete catalog snapshot with all projects and tasks
+- `{project}.json` - Per-project snapshots (if enabled)
 
-        await File.WriteAllTextAsync(readmePath, readme.ToString());
+## Purpose
+- **Git History**: Track all spec changes with readable diffs
+- **Collaboration**: Team members can see catalog via Git
+- **Backup**: JSON serves as readable backup of SQLite database
+- **CI/CD**: Automated tools can consume catalog.json
+
+## Auto-Export
+The catalog is automatically exported to Git on every spec save when:
+- A repository root is configured in TaskMaster
+- The `catalog/` directory exists
+
+## Manual Export
+You can also manually export the catalog using the ""Export Catalog"" button in TaskMaster.
+";
+
+        await File.WriteAllTextAsync(filePath, template, Encoding.UTF8);
+        LoggingService.LogInfo($"Created catalog README: {filePath}", "ProjectTemplateService");
     }
 
-    public static async Task<string> GenerateProjectExportAsync(Project project, string targetPath)
+    public static async Task GenerateProjectExportAsync(Project project, string outputPath)
     {
         try
         {
+            LoggingService.LogInfo($"Exporting project template for {project.Name}", "ProjectTemplateService");
+
             var exportData = new
             {
-                project = new
-                {
-                    name = project.Name,
-                    taskCount = project.TaskCount,
-                    lastUpdated = project.LastUpdated,
-                    claudeMdPath = project.ClaudeMdPath,
-                    metadata = project.Metadata
-                },
+                name = project.Name,
+                claudeMdPath = project.ClaudeMdPath,
                 exportedAt = DateTime.UtcNow,
-                taskMasterVersion = "1.0.0"
+                version = "1.0"
             };
 
             var json = Newtonsoft.Json.JsonConvert.SerializeObject(exportData, Newtonsoft.Json.Formatting.Indented);
-            await File.WriteAllTextAsync(targetPath, json);
+            await File.WriteAllTextAsync(outputPath, json, Encoding.UTF8);
 
-            return targetPath;
+            LoggingService.LogInfo($"Project template exported to: {outputPath}", "ProjectTemplateService");
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException($"Failed to export project: {ex.Message}", ex);
+            LoggingService.LogError("Failed to export project template", ex, "ProjectTemplateService");
+            throw;
         }
     }
 
-    public static async Task<Project?> ImportProjectAsync(string filePath)
+    public static async Task<Project?> ImportProjectAsync(string importPath)
     {
         try
         {
-            var json = await File.ReadAllTextAsync(filePath);
-            var data = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(json);
+            LoggingService.LogInfo($"Importing project template from: {importPath}", "ProjectTemplateService");
 
-            if (data?.project == null)
+            if (!File.Exists(importPath))
             {
-                throw new InvalidOperationException("Invalid project export file format");
+                LoggingService.LogError($"Import file not found: {importPath}", null, "ProjectTemplateService");
+                return null;
             }
 
-            return new Project
+            var json = await File.ReadAllTextAsync(importPath);
+            var importData = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType(json, new
             {
-                Name = data.project.name,
-                TaskCount = data.project.taskCount ?? 0,
-                LastUpdated = data.project.lastUpdated ?? DateTime.UtcNow,
-                ClaudeMdPath = data.project.claudeMdPath,
-                Metadata = data.project.metadata
+                name = "",
+                claudeMdPath = "",
+                exportedAt = DateTime.MinValue,
+                version = ""
+            });
+
+            if (importData == null || string.IsNullOrWhiteSpace(importData.name))
+            {
+                LoggingService.LogError("Invalid project template format", null, "ProjectTemplateService");
+                return null;
+            }
+
+            var project = new Project
+            {
+                Name = importData.name,
+                ClaudeMdPath = importData.claudeMdPath
             };
+
+            LoggingService.LogInfo($"Project template imported: {project.Name}", "ProjectTemplateService");
+            return project;
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException($"Failed to import project: {ex.Message}", ex);
+            LoggingService.LogError("Failed to import project template", ex, "ProjectTemplateService");
+            return null;
         }
     }
 }

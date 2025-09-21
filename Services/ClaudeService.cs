@@ -112,7 +112,7 @@ public class ClaudeService
     }
 
 
-    private async Task<string?> CallClaudeDirectAsync(string prompt)
+    public async Task<string?> CallClaudeDirectAsync(string prompt)
     {
         var stopwatch = Stopwatch.StartNew();
 
@@ -176,13 +176,28 @@ public class ClaudeService
     {
         var promptBuilder = new StringBuilder();
 
-        promptBuilder.AppendLine("You are a technical project manager helping to create detailed task specifications.");
-        promptBuilder.AppendLine("Based on the provided information, infer the missing fields for a task specification.");
+        promptBuilder.AppendLine("You are an expert technical project manager creating comprehensive task specifications for software development.");
+        promptBuilder.AppendLine("Your role is to transform minimal input into detailed, actionable specifications that developers can implement immediately.");
         promptBuilder.AppendLine();
+
+        // Analyze the input quality and provide appropriate guidance
+        var isSummaryMinimal = string.IsNullOrWhiteSpace(request.Summary) ||
+                              request.Summary.Length < 20 ||
+                              !request.Summary.Contains(' ') ||
+                              request.Summary.All(c => char.IsLetterOrDigit(c));
+
+        if (isSummaryMinimal)
+        {
+            promptBuilder.AppendLine("**IMPORTANT:** The provided summary appears minimal or incomplete. Please:");
+            promptBuilder.AppendLine("1. Infer the likely intent from the title and project context");
+            promptBuilder.AppendLine("2. Expand the summary into a comprehensive 2-3 sentence description");
+            promptBuilder.AppendLine("3. Focus on what the user wants to achieve, not just what they typed");
+            promptBuilder.AppendLine();
+        }
 
         promptBuilder.AppendLine($"**Project:** {request.ProjectName}");
         promptBuilder.AppendLine($"**Title:** {request.Title}");
-        promptBuilder.AppendLine($"**Summary:** {request.Summary}");
+        promptBuilder.AppendLine($"**Summary (user input):** {request.Summary}");
         promptBuilder.AppendLine();
 
         if (!string.IsNullOrEmpty(request.ClaudeMdContent))
@@ -200,36 +215,46 @@ public class ClaudeService
             foreach (var task in request.RecentTasks.Take(5))
             {
                 promptBuilder.AppendLine($"- #{task.Number}: {task.Title} ({task.Type})");
-                promptBuilder.AppendLine($"  Summary: {task.Summary}");
+                if (!string.IsNullOrWhiteSpace(task.Summary))
+                    promptBuilder.AppendLine($"  Summary: {task.Summary}");
             }
             promptBuilder.AppendLine();
         }
 
-        promptBuilder.AppendLine("Please provide a JSON response with the following structure:");
+        promptBuilder.AppendLine("**Expected JSON Response:**");
         promptBuilder.AppendLine("```json");
         promptBuilder.AppendLine("{");
-        promptBuilder.AppendLine("  \"type\": \"feature|bug|enhancement|refactor|docs\",");
-        promptBuilder.AppendLine("  \"scopePaths\": [\"path/to/file1\", \"path/to/file2\"],");
-        promptBuilder.AppendLine("  \"acceptanceCriteria\": [\"criterion 1\", \"criterion 2\"],");
-        promptBuilder.AppendLine("  \"testPlan\": [\"test step 1\", \"test step 2\"],");
-        promptBuilder.AppendLine("  \"requiredDocs\": [\"doc1.md\", \"doc2.md\"],");
-        promptBuilder.AppendLine("  \"nonGoals\": \"Optional: what this task explicitly does NOT include\",");
+        promptBuilder.AppendLine("  \"expandedSummary\": \"A comprehensive 2-3 sentence description of what this task achieves\",");
+        promptBuilder.AppendLine("  \"type\": \"feature|bug|enhancement|refactor|docs|test\",");
+        promptBuilder.AppendLine("  \"scopePaths\": [\"specific/file/paths.cs\", \"Views/ComponentName.xaml\"],");
+        promptBuilder.AppendLine("  \"acceptanceCriteria\": [\"Specific, testable requirement\", \"Another measurable outcome\"],");
+        promptBuilder.AppendLine("  \"testPlan\": [\"Manual test step\", \"Automated test requirement\"],");
+        promptBuilder.AppendLine("  \"requiredDocs\": [\"Documentation that should be referenced or updated\"],");
+        promptBuilder.AppendLine("  \"nonGoals\": \"What this task explicitly does NOT include (optional)\",");
         promptBuilder.AppendLine("  \"suggestedTasks\": [");
-        promptBuilder.AppendLine("    {\"title\": \"Task title\", \"summary\": \"Brief description\", \"type\": \"feature\"}");
+        promptBuilder.AppendLine("    {\"title\": \"Related task title\", \"summary\": \"Why this complements the current task\", \"type\": \"feature\"}");
         promptBuilder.AppendLine("  ],");
         promptBuilder.AppendLine("  \"nextSteps\": [");
-        promptBuilder.AppendLine("    {\"title\": \"Next step title\", \"summary\": \"Brief description\", \"type\": \"feature\"}");
+        promptBuilder.AppendLine("    {\"title\": \"Logical follow-up\", \"summary\": \"What should happen after this task\", \"type\": \"enhancement\"}");
         promptBuilder.AppendLine("  ]");
         promptBuilder.AppendLine("}");
         promptBuilder.AppendLine("```");
 
         promptBuilder.AppendLine();
-        promptBuilder.AppendLine("Guidelines:");
-        promptBuilder.AppendLine("- Be specific and actionable in acceptance criteria");
-        promptBuilder.AppendLine("- Include relevant file paths in scopePaths based on the project context");
-        promptBuilder.AppendLine("- Suggest 2-3 related tasks that would complement this one");
-        promptBuilder.AppendLine("- Suggest 1-2 logical next steps after this task is completed");
-        promptBuilder.AppendLine("- Keep suggestions focused on the project domain");
+        promptBuilder.AppendLine("**Quality Standards:**");
+        promptBuilder.AppendLine("- **expandedSummary**: Must be comprehensive, clear, and explain the business value");
+        promptBuilder.AppendLine("- **scopePaths**: Use actual file/folder paths from the project context when possible");
+        promptBuilder.AppendLine("- **acceptanceCriteria**: Each criterion must be specific, measurable, and testable");
+        promptBuilder.AppendLine("- **testPlan**: Include both manual verification steps and automated test requirements");
+        promptBuilder.AppendLine("- **suggestedTasks**: Focus on tasks that would logically complement or extend this work");
+        promptBuilder.AppendLine("- **nextSteps**: Consider what developers would naturally want to do after completing this task");
+        promptBuilder.AppendLine();
+
+        promptBuilder.AppendLine("**Context Analysis Guidelines:**");
+        promptBuilder.AppendLine("- Use the CLAUDE.md content to understand the project's architecture and conventions");
+        promptBuilder.AppendLine("- Reference recent tasks to maintain consistency with ongoing work");
+        promptBuilder.AppendLine("- Suggest file paths that align with the project's existing structure");
+        promptBuilder.AppendLine("- Ensure all suggestions fit within the project's scope and technical stack");
 
         return promptBuilder.ToString();
     }
@@ -257,26 +282,44 @@ public class ClaudeService
         }
     }
 
-    public async Task<bool> RunPanelAsync(string specPath, string repoRoot)
+    public async Task<bool> RunPanelAsync(string specPath, string repoRoot, string claudeMdPath)
     {
-        return await RunClaudeCommandAsync("/panel-wpf-decide", specPath, repoRoot);
+        return await RunGuardedClaudeCommandAsync("/panel-wpf-decide", specPath, repoRoot, claudeMdPath);
     }
 
-    public async Task<bool> RunUpdateAsync(string specPath, string repoRoot)
+    public async Task<bool> RunUpdateAsync(string specPath, string repoRoot, string claudeMdPath)
     {
-        return await RunClaudeCommandAsync("/update-wpf-spec", specPath, repoRoot);
+        return await RunGuardedClaudeCommandAsync("/update-wpf-spec", specPath, repoRoot, claudeMdPath);
     }
 
-    private async Task<bool> RunClaudeCommandAsync(string command, string specPath, string repoRoot)
+    private async Task<bool> RunGuardedClaudeCommandAsync(string command, string specPath, string repoRoot, string claudeMdPath)
     {
         try
         {
-            LoggingService.LogInfo($"Running Claude command: {command} with spec: {specPath}", "ClaudeService");
+            LoggingService.LogInfo($"Running guarded Claude command: {command} with spec: {specPath}", "ClaudeService");
+
+            // Preflight validation
+            var preflightResult = await GuardrailsService.ValidatePreflightChecksAsync(specPath, claudeMdPath, repoRoot);
+            if (!preflightResult.IsValid)
+            {
+                LoggingService.LogError($"Preflight validation failed: {string.Join(", ", preflightResult.Errors)}", null, "ClaudeService");
+                throw new InvalidOperationException($"Preflight validation failed: {string.Join(", ", preflightResult.Errors)}");
+            }
+
+            if (preflightResult.Warnings.Any())
+            {
+                LoggingService.LogWarning($"Preflight warnings: {string.Join(", ", preflightResult.Warnings)}", "ClaudeService");
+            }
+
+            // Build command with guardrail flags
+            var guardedCommand = GuardrailsService.BuildGuardedCommand($"claude {command}", new[] { $"\"{specPath}\"" });
+
+            LoggingService.LogInfo($"Executing guarded command: {guardedCommand}", "ClaudeService");
 
             var processInfo = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
-                Arguments = $"/c claude {command} \"{specPath}\"",
+                Arguments = $"/c {guardedCommand}",
                 WorkingDirectory = repoRoot,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -290,10 +333,11 @@ public class ClaudeService
                 processInfo.EnvironmentVariables[key] = Environment.GetEnvironmentVariable(key) ?? "";
             }
 
+            var stopwatch = Stopwatch.StartNew();
             using var process = Process.Start(processInfo);
             if (process == null)
             {
-                LoggingService.LogError("Failed to start Claude CLI process for command execution", null, "ClaudeService");
+                LoggingService.LogError("Failed to start Claude CLI process for guarded command execution", null, "ClaudeService");
                 return false;
             }
 
@@ -301,24 +345,80 @@ public class ClaudeService
             var error = await process.StandardError.ReadToEndAsync();
 
             await process.WaitForExitAsync();
+            stopwatch.Stop();
 
-            LoggingService.LogInfo($"Claude command completed with exit code: {process.ExitCode}", "ClaudeService");
+            LoggingService.LogClaudeResponse(process.ExitCode, output, error, stopwatch.Elapsed);
 
-            if (process.ExitCode != 0)
+            // Determine expected decision file path for panel commands
+            string expectedDecisionPath = null;
+            if (command.Contains("panel"))
             {
-                LoggingService.LogError($"Claude command failed: {error}", null, "ClaudeService");
-            }
-            else if (!string.IsNullOrEmpty(output))
-            {
-                LoggingService.LogInfo($"Claude command output: {output}", "ClaudeService");
+                var specFileName = Path.GetFileNameWithoutExtension(specPath);
+                var timestamp = DateTime.UtcNow.ToString("yyyyMMdd");
+
+                // Extract slug from spec filename (remove date prefix if present)
+                var slug = System.Text.RegularExpressions.Regex.Replace(specFileName, @"^\d{8}-", "");
+
+                expectedDecisionPath = Path.Combine(repoRoot, "docs", "decisions", $"{timestamp}-{slug}.md");
             }
 
-            return process.ExitCode == 0;
+            // Postflight validation
+            var postflightResult = GuardrailsService.ValidatePostflightResults(output, error, process.ExitCode, expectedDecisionPath);
+            if (!postflightResult.IsValid)
+            {
+                LoggingService.LogError($"Postflight validation failed: {string.Join(", ", postflightResult.Issues)}", null, "ClaudeService");
+            }
+            else
+            {
+                LoggingService.LogInfo("Postflight validation passed", "ClaudeService");
+                if (!string.IsNullOrEmpty(postflightResult.PrUrl))
+                {
+                    LoggingService.LogInfo($"PR created: {postflightResult.PrUrl}", "ClaudeService");
+                }
+                if (!string.IsNullOrEmpty(postflightResult.BranchName))
+                {
+                    LoggingService.LogInfo($"Branch created: {postflightResult.BranchName}", "ClaudeService");
+                }
+            }
+
+            return postflightResult.CommandSucceeded;
         }
         catch (Exception ex)
         {
-            LoggingService.LogError($"Exception running Claude command: {command}", ex, "ClaudeService");
-            return false;
+            LoggingService.LogError($"Exception running guarded Claude command: {command}", ex, "ClaudeService");
+            throw;
         }
     }
+
+    public async Task<PanelResult> RunPanelServiceAsync(string specPath, string repoRoot, int rounds = 2, string scope = "src/")
+    {
+        try
+        {
+            LoggingService.LogInfo($"Running panel service for spec: {specPath}", "ClaudeService");
+
+            var panelService = new PanelService(this, repoRoot);
+            var result = await panelService.RunPanelAsync(specPath, rounds, scope);
+
+            if (result.Success)
+            {
+                LoggingService.LogInfo($"Panel service completed successfully. Decision: {result.DecisionPath}", "ClaudeService");
+            }
+            else
+            {
+                LoggingService.LogError($"Panel service failed: {result.ErrorMessage}", null, "ClaudeService");
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Exception in RunPanelServiceAsync", ex, "ClaudeService");
+            return new PanelResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message
+            };
+        }
+    }
+
 }

@@ -16,6 +16,7 @@ public partial class MainViewModel : ObservableObject
     private readonly DatabaseService _databaseService;
     private readonly ClaudeService _claudeService;
     private readonly SpecFileService _specFileService;
+    private readonly PanelService _panelService;
 
     [ObservableProperty]
     private ObservableCollection<Project> _projects = new();
@@ -83,6 +84,35 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string? _lastSavedSpecPath;
 
+    [ObservableProperty]
+    private int _panelRounds = 2;
+
+    [ObservableProperty]
+    private string _panelScope = "src/";
+
+    // Catalog Export Settings
+    [ObservableProperty]
+    private bool _autoExportCatalogOnSave = true;
+
+    [ObservableProperty]
+    private bool _enablePerProjectCatalogs = false;
+
+    [ObservableProperty]
+    private string _catalogExportPath = "catalog";
+
+    // New UI Properties
+    [ObservableProperty]
+    private string _typeFilter = "All";
+
+    [ObservableProperty]
+    private string _statusFilter = "All";
+
+    [ObservableProperty]
+    private bool _isTaskDetailPanelOpen = false;
+
+    [ObservableProperty]
+    private TaskDetailViewModel? _selectedTaskDetail;
+
     private ClaudeInferenceResponse? _lastInference;
 
     public MainViewModel()
@@ -91,6 +121,7 @@ public partial class MainViewModel : ObservableObject
         _databaseService.InitializeDatabase(); // Initialize database on startup
         _claudeService = new ClaudeService();
         _specFileService = new SpecFileService(_databaseService);
+        _panelService = new PanelService(_claudeService, RepoRoot);
 
         PropertyChanged += OnPropertyChanged;
         LoadProjectsAsync();
@@ -125,7 +156,7 @@ public partial class MainViewModel : ObservableObject
             InferSpecCommand.NotifyCanExecuteChanged();
         }
 
-        if (e.PropertyName == nameof(LastSavedSpecPath))
+        if (e.PropertyName == nameof(LastSavedSpecPath) || e.PropertyName == nameof(ClaudeMdPath))
         {
             RunPanelCommand.NotifyCanExecuteChanged();
             RunUpdateCommand.NotifyCanExecuteChanged();
@@ -248,6 +279,12 @@ public partial class MainViewModel : ObservableObject
 
                 InferenceStatus = "Processing response...";
 
+                // Update Summary with expanded version if available
+                if (!string.IsNullOrWhiteSpace(_lastInference.ExpandedSummary))
+                {
+                    Summary = _lastInference.ExpandedSummary;
+                }
+
                 Type = _lastInference.Type;
                 ScopePaths = JsonConvert.SerializeObject(_lastInference.ScopePaths, Formatting.Indented);
                 AcceptanceCriteria = JsonConvert.SerializeObject(_lastInference.AcceptanceCriteria, Formatting.Indented);
@@ -268,6 +305,7 @@ public partial class MainViewModel : ObservableObject
                 IsInferenceValid = true;
                 IsInferenceStale = false;
                 InferenceStatus = "Inference completed successfully";
+                LoggingService.LogInfo("IsInferenceValid set to true after inference", "MainViewModel");
 
                 LoggingService.LogInfo("Inference completed successfully", "MainViewModel");
             }
@@ -322,15 +360,24 @@ public partial class MainViewModel : ObservableObject
     {
         if (!IsInferenceValid) return;
 
+        LoggingService.LogInfo($"Validating inferred fields:", "MainViewModel");
+        LoggingService.LogInfo($"  ScopePaths: {ScopePaths}", "MainViewModel");
+        LoggingService.LogInfo($"  AcceptanceCriteria: {AcceptanceCriteria}", "MainViewModel");
+        LoggingService.LogInfo($"  TestPlan: {TestPlan}", "MainViewModel");
+        LoggingService.LogInfo($"  RequiredDocs: {RequiredDocs}", "MainViewModel");
+
         var errors = ValidationService.ValidateInferredFields(ScopePaths, AcceptanceCriteria, TestPlan, RequiredDocs);
 
         if (errors.Any())
         {
+            LoggingService.LogInfo($"Validation errors found: {string.Join(", ", errors)}", "MainViewModel");
             ValidationErrors = string.Join(Environment.NewLine, errors);
             IsInferenceValid = false;
+            LoggingService.LogInfo("IsInferenceValid set to false due to validation errors", "MainViewModel");
         }
         else
         {
+            LoggingService.LogInfo("All inferred fields are valid", "MainViewModel");
             ValidateInput(); // Re-validate base input
         }
     }
@@ -343,8 +390,14 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
+            LoggingService.LogInfo($"Starting SaveSpecAsync - Project: {SelectedProject.Name} (ID: {SelectedProject.Id})", "MainViewModel");
+            LoggingService.LogInfo($"Title: {Title}, Type: {Type}", "MainViewModel");
+
             var taskNumber = await _databaseService.GetNextTaskNumberAsync(SelectedProject.Id);
+            LoggingService.LogInfo($"Got task number: {taskNumber}", "MainViewModel");
+
             var slug = SlugService.GenerateSlug(Title);
+            LoggingService.LogInfo($"Generated slug: {slug}", "MainViewModel");
 
             var taskSpec = new TaskSpec
             {
@@ -364,10 +417,49 @@ public partial class MainViewModel : ObservableObject
                 NextSteps = NextSteps
             };
 
-            await _databaseService.SaveTaskSpecAsync(taskSpec);
+            LoggingService.LogInfo($"Created TaskSpec object for task #{taskNumber}", "MainViewModel");
+
+            var savedTaskSpec = await _databaseService.SaveTaskSpecAsync(taskSpec);
+            LoggingService.LogInfo($"SaveTaskSpecAsync completed - Task ID: {savedTaskSpec.Id}", "MainViewModel");
 
             var filePath = await _specFileService.SaveSpecToFileAsync(taskSpec, SelectedProject, RepoRoot);
             LastSavedSpecPath = filePath;
+
+            // Auto-export catalog to Git repo if enabled and configured
+            if (AutoExportCatalogOnSave && !string.IsNullOrWhiteSpace(RepoRoot) && Directory.Exists(RepoRoot))
+            {
+                try
+                {
+                    LoggingService.LogInfo("Auto-exporting catalog to Git repo", "MainViewModel");
+
+                    // Get all projects with their tasks for catalog export
+                    var projectsWithTasks = new List<Project>();
+                    foreach (var project in Projects)
+                    {
+                        var fullProject = await _databaseService.GetProjectByIdAsync(project.Id);
+                        if (fullProject != null)
+                        {
+                            fullProject.Tasks = await _databaseService.GetRecentTasksAsync(project.Id, 1000);
+                            projectsWithTasks.Add(fullProject);
+                        }
+                    }
+
+                    await _specFileService.SaveCatalogToRepoAsync(projectsWithTasks, RepoRoot, CatalogExportPath, EnablePerProjectCatalogs);
+                    LoggingService.LogInfo("Catalog auto-exported successfully", "MainViewModel");
+                }
+                catch (Exception catalogEx)
+                {
+                    LoggingService.LogError("Failed to auto-export catalog", catalogEx, "MainViewModel");
+                    // Don't fail the entire save operation for catalog export issues
+                }
+            }
+            else if (!AutoExportCatalogOnSave)
+            {
+                LoggingService.LogInfo("Catalog auto-export is disabled", "MainViewModel");
+            }
+
+            LoggingService.LogInfo($"Spec file saved to: {filePath}", "MainViewModel");
+            LoggingService.LogInfo($"LastSavedSpecPath set to: {LastSavedSpecPath}", "MainViewModel");
 
             MessageBox.Show($"Spec saved successfully!\nFile: {filePath}\nTask: #{taskNumber}",
                 "Success", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -384,7 +476,9 @@ public partial class MainViewModel : ObservableObject
 
     private bool CanSaveSpec()
     {
-        return SelectedProject != null && IsInferenceValid && !IsInferring;
+        var canSave = SelectedProject != null && IsInferenceValid && !IsInferring;
+        LoggingService.LogInfo($"CanSaveSpec: {canSave} (SelectedProject: {SelectedProject != null}, IsInferenceValid: {IsInferenceValid}, IsInferring: {IsInferring})", "MainViewModel");
+        return canSave;
     }
 
     [RelayCommand(CanExecute = nameof(CanRunPanel))]
@@ -393,24 +487,35 @@ public partial class MainViewModel : ObservableObject
         if (string.IsNullOrEmpty(LastSavedSpecPath))
             return;
 
+        // Run prerequisite validation first
+        if (!await ValidatePrerequisitesAsync())
+            return;
+
         try
         {
-            var success = await _claudeService.RunPanelAsync(LastSavedSpecPath, RepoRoot);
+            LoggingService.LogInfo("Starting panel execution", "MainViewModel");
 
-            if (success)
+            // Use the new PanelService instead of direct Claude commands
+            var panelResult = await _claudeService.RunPanelServiceAsync(LastSavedSpecPath, RepoRoot, PanelRounds, PanelScope);
+
+            if (panelResult.Success)
             {
-                var decisionPath = _specFileService.GetDecisionFilePath(LastSavedSpecPath);
-                MessageBox.Show($"Panel completed successfully!\nDecision file: {decisionPath}",
-                    "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Panel completed successfully!\n\nDecision file: {panelResult.DecisionPath}\nSlug: {panelResult.Slug}",
+                    "Panel Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                LoggingService.LogInfo($"Panel completed successfully for: {LastSavedSpecPath}", "MainViewModel");
             }
             else
             {
-                MessageBox.Show("Panel command failed. Check Claude CLI output.",
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Panel execution failed:\n\n{panelResult.ErrorMessage}",
+                    "Panel Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                LoggingService.LogError($"Panel failed: {panelResult.ErrorMessage}", null, "MainViewModel");
             }
         }
         catch (Exception ex)
         {
+            LoggingService.LogError("Exception in RunPanelAsync", ex, "MainViewModel");
             MessageBox.Show($"Failed to run panel: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
@@ -418,13 +523,18 @@ public partial class MainViewModel : ObservableObject
 
     private bool CanRunPanel()
     {
-        return !string.IsNullOrEmpty(LastSavedSpecPath) && File.Exists(LastSavedSpecPath);
+        return !string.IsNullOrEmpty(LastSavedSpecPath) && File.Exists(LastSavedSpecPath) &&
+               !string.IsNullOrEmpty(ClaudeMdPath) && File.Exists(ClaudeMdPath);
     }
 
     [RelayCommand(CanExecute = nameof(CanRunUpdate))]
     private async Task RunUpdateAsync()
     {
         if (string.IsNullOrEmpty(LastSavedSpecPath))
+            return;
+
+        // Run prerequisite validation first
+        if (!await ValidatePrerequisitesAsync())
             return;
 
         try
@@ -438,7 +548,7 @@ public partial class MainViewModel : ObservableObject
                 return;
             }
 
-            var success = await _claudeService.RunUpdateAsync(LastSavedSpecPath, RepoRoot);
+            var success = await _claudeService.RunUpdateAsync(LastSavedSpecPath, RepoRoot, ClaudeMdPath);
 
             if (success)
             {
@@ -463,8 +573,33 @@ public partial class MainViewModel : ObservableObject
         if (string.IsNullOrEmpty(LastSavedSpecPath) || !File.Exists(LastSavedSpecPath))
             return false;
 
+        if (string.IsNullOrEmpty(ClaudeMdPath) || !File.Exists(ClaudeMdPath))
+            return false;
+
         var decisionPath = _specFileService.GetDecisionFilePath(LastSavedSpecPath);
         return File.Exists(decisionPath);
+    }
+
+    [RelayCommand]
+    private async Task ExportTemplateAsync()
+    {
+        try
+        {
+            LoggingService.LogInfo("Opening export template dialog", "MainViewModel");
+
+            var templateService = new TemplateService(_databaseService);
+            var viewModel = new TemplateExportViewModel(templateService, RepoRoot);
+            var dialog = new Views.ExportTemplateDialog(viewModel);
+
+            dialog.Owner = Application.Current.MainWindow;
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Error opening export template dialog", ex, "MainViewModel");
+            MessageBox.Show($"Failed to open export template dialog: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     [RelayCommand]
@@ -526,8 +661,10 @@ public partial class MainViewModel : ObservableObject
                     "The following directories and files were created:\n" +
                     "- docs/specs/ (for task specifications)\n" +
                     "- docs/decisions/ (for design decisions)\n" +
+                    "- catalog/ (Git-tracked catalog JSON snapshots)\n" +
                     "- .claude/ (slash commands)\n" +
-                    "- CLAUDE.md (project instructions template)",
+                    "- CLAUDE.md (project instructions template)\n" +
+                    "- catalog/README.md (catalog documentation)",
                     "Project Setup Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
@@ -604,6 +741,52 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to import project template: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportCatalogAsync()
+    {
+        try
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "JSON files (*.json)|*.json",
+                Title = "Import TaskMaster Catalog",
+                InitialDirectory = !string.IsNullOrWhiteSpace(RepoRoot) ? Path.Combine(RepoRoot, "catalog") : null
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                LoggingService.LogInfo($"Importing catalog from: {dialog.FileName}", "MainViewModel");
+
+                var catalogJson = await File.ReadAllTextAsync(dialog.FileName);
+                var success = await _databaseService.ImportCatalogAsync(catalogJson);
+
+                if (success)
+                {
+                    // Refresh the projects list
+                    LoadProjectsAsync();
+
+                    MessageBox.Show("Catalog imported successfully!\n\nProjects and tasks have been synchronized with your local database.",
+                        "Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    LoggingService.LogInfo("Catalog import completed successfully", "MainViewModel");
+                }
+                else
+                {
+                    MessageBox.Show("Failed to import catalog. Please check the file format and try again.",
+                        "Import Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                    LoggingService.LogError("Catalog import failed", null, "MainViewModel");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Exception during catalog import", ex, "MainViewModel");
+            MessageBox.Show($"Failed to import catalog: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -727,5 +910,159 @@ public partial class MainViewModel : ObservableObject
         InferenceStatus = "Ready to infer";
         LastSavedSpecPath = null;
         _lastInference = null;
+    }
+
+    private async Task<bool> ValidatePrerequisitesAsync()
+    {
+        try
+        {
+            LoggingService.LogInfo("Running prerequisite validation", "MainViewModel");
+
+            if (string.IsNullOrWhiteSpace(RepoRoot))
+            {
+                MessageBox.Show("Repository root is required for panel/update operations.",
+                    "Missing Repository Root", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(ClaudeMdPath))
+            {
+                MessageBox.Show("CLAUDE.md path is required for panel/update operations.",
+                    "Missing CLAUDE.md", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+
+            // Run GuardrailsService preflight validation
+            var preflightResult = await GuardrailsService.ValidatePreflightChecksAsync(
+                LastSavedSpecPath ?? "", ClaudeMdPath, RepoRoot);
+
+            if (!preflightResult.IsValid)
+            {
+                var errorMessage = "Prerequisites validation failed:\n\n" +
+                    string.Join("\n", preflightResult.Errors);
+
+                if (preflightResult.Warnings.Any())
+                {
+                    errorMessage += "\n\nWarnings:\n" + string.Join("\n", preflightResult.Warnings);
+                }
+
+                var result = MessageBox.Show(
+                    errorMessage + "\n\nDo you want to continue anyway?",
+                    "Prerequisites Check Failed",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes)
+                {
+                    return false;
+                }
+            }
+
+            LoggingService.LogInfo("Prerequisites validation completed", "MainViewModel");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Error during prerequisites validation", ex, "MainViewModel");
+            MessageBox.Show($"Prerequisites validation failed: {ex.Message}",
+                "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
+    }
+
+    // New Commands for the redesigned UI
+    [RelayCommand]
+    private async Task NewTaskAsync()
+    {
+        try
+        {
+            var dialog = new NewTaskDialog();
+            dialog.Projects.Clear();
+            foreach (var project in Projects)
+            {
+                dialog.Projects.Add(project);
+            }
+            dialog.SelectedProject = SelectedProject;
+
+            if (dialog.ShowDialog() == true && dialog.CreatedTask != null)
+            {
+                var newTask = dialog.CreatedTask;
+
+                // Get the next task number for this project
+                var taskNumber = await _databaseService.GetNextTaskNumberAsync(newTask.ProjectId);
+                newTask.Number = taskNumber;
+
+                // Save the task immediately
+                var savedTask = await _databaseService.SaveTaskSpecAsync(newTask);
+
+                LoggingService.LogInfo($"Created new task #{savedTask.Number} - {savedTask.Title}", "MainViewModel");
+
+                // Open the task in the detail panel
+                await OpenTaskDetailAsync(savedTask);
+
+                // Refresh the task list if the project matches current selection
+                if (SelectedProject?.Id == savedTask.ProjectId)
+                {
+                    // Notify task list to refresh
+                    OnPropertyChanged(nameof(LastSavedSpecPath));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to create new task", ex, "MainViewModel");
+            MessageBox.Show($"Failed to create new task: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportTemplateAsync()
+    {
+        try
+        {
+            MessageBox.Show("Import template functionality will be implemented later.", "Not Implemented",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to import template", ex, "MainViewModel");
+            MessageBox.Show($"Failed to import template: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    public async Task OpenTaskDetailAsync(TaskSpec task)
+    {
+        try
+        {
+            if (SelectedTaskDetail == null)
+            {
+                SelectedTaskDetail = new TaskDetailViewModel(_databaseService, _claudeService, _panelService, _specFileService);
+                SelectedTaskDetail.TaskSaved += OnTaskSaved;
+            }
+
+            SelectedTaskDetail.LoadTask(task);
+            IsTaskDetailPanelOpen = true;
+
+            LoggingService.LogInfo($"Opened task #{task.Number} in detail panel", "MainViewModel");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to open task detail for #{task.Number}", ex, "MainViewModel");
+        }
+    }
+
+    public void CloseTaskDetail()
+    {
+        IsTaskDetailPanelOpen = false;
+        LoggingService.LogInfo("Closed task detail panel", "MainViewModel");
+    }
+
+    private void OnTaskSaved(object? sender, TaskSpec savedTask)
+    {
+        // Refresh the task list when a task is saved
+        OnPropertyChanged(nameof(LastSavedSpecPath));
+        LoggingService.LogInfo($"Task #{savedTask.Number} saved, refreshing task list", "MainViewModel");
     }
 }
