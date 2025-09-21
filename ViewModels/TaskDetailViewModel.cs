@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Threading;
 using System.Windows;
 using TaskMaster.Models;
 using TaskMaster.Services;
@@ -162,7 +163,7 @@ public partial class TaskDetailViewModel : ObservableObject
                 ClaudeMdContent = "", // Will need to get this from somewhere
                 RecentTasks = new List<TaskSpec>()
             };
-            var inferredFields = await _claudeService.InferSpecFieldsAsync(request);
+            var inferredFields = await _claudeService.InferSpecFieldsAsync(request, CancellationToken.None);
 
             if (inferredFields != null)
             {

@@ -189,6 +189,7 @@
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               Margin="{TemplateBinding Padding}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
                                               RecognizesAccessKey="True"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -198,6 +199,10 @@
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter Property="Background" TargetName="border" Value="#4B5563"/>
+                                <Setter Property="TextElement.Foreground" TargetName="contentPresenter" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="TextElement.Foreground" TargetName="contentPresenter" Value="#6B7280"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -209,13 +214,21 @@
     <!-- Popup Content Card -->
     <Border Background="#1A1F2E" CornerRadius="16"
             BorderBrush="#7C3AED" BorderThickness="2"
-            Width="400" Height="540"
+            Width="400" MaxHeight="600" Height="Auto" MinHeight="540"
             MouseDown="NewTaskPopup_MouseDown">
         <Border.Effect>
             <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.6" BlurRadius="32"/>
         </Border.Effect>
 
-        <StackPanel Margin="32,28" VerticalAlignment="Top">
+        <Grid Margin="32,28">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Scrollable Content Area -->
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
             <!-- Compact Header -->
             <StackPanel Orientation="Horizontal" Margin="0,0,0,18" HorizontalAlignment="Center">
                 <TextBlock Text="✨" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
@@ -337,25 +350,24 @@
                            FontSize="10" Foreground="#9CA3AF" HorizontalAlignment="Center" Margin="0,6,0,0"/>
             </StackPanel>
 
-            <!-- Action Buttons -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Name="CancelButton" Click="CancelButton_Click"
-                        Style="{StaticResource CompactGhostButton}" Margin="0,0,12,0">
-                    <Button.Content>
-                        <TextBlock>
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="Cancel"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsGenerating}" Value="True">
-                                            <Setter Property="Text" Value="Cancel AI"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </Button.Content>
-                </Button>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Fixed Action Buttons at Bottom -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
+                <Button Name="CancelButton"
+                        Click="CancelButton_Click"
+                        Content="Cancel"
+                        Background="#374151"
+                        Foreground="White"
+                        BorderThickness="1"
+                        BorderBrush="#6B7280"
+                        Padding="12,8"
+                        FontSize="12"
+                        FontWeight="Medium"
+                        MinWidth="80"
+                        Height="32"
+                        Margin="0,0,12,0" />
                 <Button Name="CreateButton" Click="CreateButton_Click"
                         Style="{StaticResource CompactPrimaryButton}"
                         IsEnabled="{Binding CanCreateTask}">
@@ -375,6 +387,6 @@
                     </Button.Content>
                 </Button>
             </StackPanel>
-        </StackPanel>
+        </Grid>
     </Border>
 </UserControl>

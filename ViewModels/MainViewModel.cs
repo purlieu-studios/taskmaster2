@@ -4,6 +4,7 @@ using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Threading;
 using System.Windows;
 using TaskMaster.Models;
 using TaskMaster.Services;
@@ -280,7 +281,7 @@ public partial class MainViewModel : ObservableObject
             };
 
             InferenceStatus = "Calling Claude CLI...";
-            _lastInference = await _claudeService.InferSpecFieldsAsync(request);
+            _lastInference = await _claudeService.InferSpecFieldsAsync(request, CancellationToken.None);
 
             if (_lastInference != null)
             {

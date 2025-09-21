@@ -14,7 +14,7 @@ public class ClaudeService
         LoggingService.LogSystemInfo();
     }
 
-    public async Task<ClaudeInferenceResponse?> InferSpecFieldsAsync(ClaudeInferenceRequest request)
+    public async Task<ClaudeInferenceResponse?> InferSpecFieldsAsync(ClaudeInferenceRequest request, CancellationToken cancellationToken = default)
     {
         LoggingService.LogInfo($"Starting inference for task: {request.Title}", "ClaudeService");
 
@@ -29,7 +29,7 @@ public class ClaudeService
             // Use direct prompt approach
             LoggingService.LogInfo("Calling Claude with inference prompt", "ClaudeService");
             var prompt = BuildInferencePrompt(request);
-            var response = await CallClaudeDirectAsync(prompt);
+            var response = await CallClaudeDirectAsync(prompt, cancellationToken);
 
             if (response != null)
             {
@@ -146,15 +146,42 @@ public class ClaudeService
                 throw new InvalidOperationException("Failed to start Claude CLI process");
             }
 
+            // Register cancellation to kill the process
+            using var cancellationRegistration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        LoggingService.LogInfo("Cancellation requested - killing Claude process", "ClaudeService");
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.LogWarning($"Failed to kill Claude process: {ex.Message}", "ClaudeService");
+                }
+            });
+
+            // Check for cancellation before proceeding
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Write prompt to stdin and close it
-            await process.StandardInput.WriteAsync(prompt);
+            await process.StandardInput.WriteAsync(prompt.AsMemory(), cancellationToken);
             process.StandardInput.Close();
 
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
+            // Read output with cancellation support
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            var waitTask = process.WaitForExitAsync(cancellationToken);
 
-            await process.WaitForExitAsync();
+            // Wait for completion with cancellation support
+            await Task.WhenAll(outputTask, errorTask, waitTask);
+
             stopwatch.Stop();
+
+            var output = await outputTask;
+            var error = await errorTask;
 
             LoggingService.LogClaudeResponse(process.ExitCode, output, error, stopwatch.Elapsed);
 
@@ -164,6 +191,12 @@ public class ClaudeService
             }
 
             return output;
+        }
+        catch (OperationCanceledException)
+        {
+            stopwatch.Stop();
+            LoggingService.LogInfo($"Claude CLI call was cancelled after {stopwatch.Elapsed}", "ClaudeService");
+            throw;
         }
         catch (Exception ex)
         {
@@ -264,21 +297,85 @@ public class ClaudeService
     {
         try
         {
-            // Find JSON in the response
+            LoggingService.LogInfo($"Parsing Claude response ({response.Length} characters)", "ClaudeService");
+
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                LoggingService.LogWarning("Empty or null response from Claude", "ClaudeService");
+                return null;
+            }
+
+            // Try multiple JSON extraction strategies
+            var jsonCandidates = new List<string>();
+
+            // Strategy 1: Look for JSON code blocks (```json ... ```)
+            var jsonBlockMatch = System.Text.RegularExpressions.Regex.Match(response, @"```json\s*(\{.*?\})\s*```", System.Text.RegularExpressions.RegexOptions.Singleline);
+            if (jsonBlockMatch.Success)
+            {
+                jsonCandidates.Add(jsonBlockMatch.Groups[1].Value);
+            }
+
+            // Strategy 2: Look for the largest complete JSON object
+            var openBraces = 0;
+            var startIndex = -1;
+
+            for (int i = 0; i < response.Length; i++)
+            {
+                if (response[i] == '{')
+                {
+                    if (openBraces == 0) startIndex = i;
+                    openBraces++;
+                }
+                else if (response[i] == '}')
+                {
+                    openBraces--;
+                    if (openBraces == 0 && startIndex >= 0)
+                    {
+                        var json = response.Substring(startIndex, i - startIndex + 1);
+                        jsonCandidates.Add(json);
+                        break; // Take the first complete JSON object
+                    }
+                }
+            }
+
+            // Strategy 3: Fallback to simple first/last brace method
             var jsonStart = response.IndexOf('{');
             var jsonEnd = response.LastIndexOf('}');
-
             if (jsonStart >= 0 && jsonEnd > jsonStart)
             {
                 var json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
-                return JsonConvert.DeserializeObject<ClaudeInferenceResponse>(json);
+                jsonCandidates.Add(json);
             }
+
+            // Try to parse each candidate
+            foreach (var jsonCandidate in jsonCandidates)
+            {
+                try
+                {
+                    var result = JsonConvert.DeserializeObject<ClaudeInferenceResponse>(jsonCandidate);
+                    if (result != null)
+                    {
+                        LoggingService.LogInfo("Successfully parsed Claude inference response", "ClaudeService");
+                        return result;
+                    }
+                }
+                catch (JsonException jsonEx)
+                {
+                    LoggingService.LogInfo($"JSON parsing attempt failed: {jsonEx.Message}", "ClaudeService");
+                    continue; // Try next candidate
+                }
+            }
+
+            // If we get here, all parsing attempts failed
+            LoggingService.LogError("Failed to parse any valid JSON from Claude response", null, "ClaudeService");
+            LoggingService.LogInfo($"Raw response: {response}", "ClaudeService");
 
             return null;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error parsing Claude response: {ex.Message}");
+            LoggingService.LogError("Unexpected error parsing Claude response", ex, "ClaudeService");
+            LoggingService.LogInfo($"Raw response: {response}", "ClaudeService");
             return null;
         }
     }
@@ -391,7 +488,7 @@ public class ClaudeService
         }
     }
 
-    public async Task<TaskSpec> EnhanceTaskSpecAsync(string title, string summary, string type, string projectName, CancellationToken cancellationToken = default)
+    public async Task<TaskSpec> EnhanceTaskSpecAsync(string title, string summary, string type, string projectName, System.Threading.CancellationToken cancellationToken = default)
     {
         LoggingService.LogInfo($"Starting task enhancement for: {title}", "ClaudeService");
 
@@ -427,14 +524,18 @@ public class ClaudeService
                 }
                 else
                 {
-                    var errorMsg = "Failed to parse Claude enhancement response as valid JSON";
-                    LoggingService.LogWarning($"{errorMsg}. Raw response: {response.Substring(0, Math.Min(200, response.Length))}...", "ClaudeService");
+                    var errorMsg = "AI enhancement is unavailable: Failed to parse Claude enhancement response as valid JSON";
+                    LoggingService.LogWarning($"{errorMsg}. Full response logged separately.", "ClaudeService");
+
+                    // Log the full response for debugging (separate log entry to avoid UI clutter)
+                    LoggingService.LogError($"Full Claude response that failed to parse: {response}", null, "ClaudeService");
+
                     throw new InvalidOperationException(errorMsg);
                 }
             }
 
             // If we get here, something went wrong
-            var noResponseMsg = "Claude CLI returned no response";
+            var noResponseMsg = "AI enhancement is unavailable: Claude CLI returned no response";
             LoggingService.LogError(noResponseMsg, null, "ClaudeService");
             throw new InvalidOperationException(noResponseMsg);
         }
@@ -487,20 +588,62 @@ public class ClaudeService
     {
         try
         {
-            // Find JSON in the response
-            var jsonStart = response.IndexOf('{');
-            var jsonEnd = response.LastIndexOf('}');
+            LoggingService.LogInfo($"Parsing Claude response. Length: {response.Length}, First 200 chars: {response.Substring(0, Math.Min(200, response.Length))}", "ClaudeService");
 
-            if (jsonStart >= 0 && jsonEnd > jsonStart)
+            string json = null;
+
+            // Method 1: Try to extract JSON from markdown code block
+            var jsonBlockPattern = @"```(?:json)?\s*\n?\s*(\{[\s\S]*?\})\s*\n?\s*```";
+            var match = System.Text.RegularExpressions.Regex.Match(response, jsonBlockPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline);
+            if (match.Success)
             {
-                var json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                json = match.Groups[1].Value.Trim();
+                LoggingService.LogInfo("Found JSON in markdown code block", "ClaudeService");
+            }
+
+            // Method 2: If no code block, try to find first complete JSON object
+            if (string.IsNullOrEmpty(json))
+            {
+                var jsonStart = response.IndexOf('{');
+                if (jsonStart >= 0)
+                {
+                    // Find the matching closing brace by counting braces
+                    int braceCount = 0;
+                    int jsonEnd = -1;
+
+                    for (int i = jsonStart; i < response.Length; i++)
+                    {
+                        if (response[i] == '{') braceCount++;
+                        else if (response[i] == '}')
+                        {
+                            braceCount--;
+                            if (braceCount == 0)
+                            {
+                                jsonEnd = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (jsonEnd > jsonStart)
+                    {
+                        json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                        LoggingService.LogInfo("Found JSON using brace counting method", "ClaudeService");
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(json))
+            {
+                LoggingService.LogInfo($"Attempting to parse JSON: {json.Substring(0, Math.Min(500, json.Length))}...", "ClaudeService");
+
                 var enhancementData = JsonConvert.DeserializeObject<dynamic>(json);
 
                 if (enhancementData != null)
                 {
                     var taskSpec = new TaskSpec();
 
-                    // Convert arrays to JSON strings
+                    // Convert arrays to JSON strings with null safety
                     taskSpec.AcceptanceCriteria = JsonConvert.SerializeObject(enhancementData.acceptanceCriteria ?? new string[0]);
                     taskSpec.TestPlan = JsonConvert.SerializeObject(enhancementData.testPlan ?? new string[0]);
                     taskSpec.ScopePaths = JsonConvert.SerializeObject(enhancementData.scopePaths ?? new string[0]);
@@ -508,15 +651,29 @@ public class ClaudeService
                     taskSpec.NonGoals = JsonConvert.SerializeObject(enhancementData.nonGoals ?? new string[0]);
                     taskSpec.Notes = JsonConvert.SerializeObject(enhancementData.notes ?? new string[0]);
 
+                    LoggingService.LogInfo("Successfully parsed enhancement response", "ClaudeService");
                     return taskSpec;
                 }
+                else
+                {
+                    LoggingService.LogWarning("Deserialized object was null", "ClaudeService");
+                }
+            }
+            else
+            {
+                LoggingService.LogWarning("No JSON found in Claude response", "ClaudeService");
             }
 
             return null;
         }
         catch (Exception ex)
         {
-            LoggingService.LogError("Error parsing Claude enhancement response", ex, "ClaudeService");
+            LoggingService.LogError($"Error parsing Claude enhancement response. Response length: {response.Length}", ex, "ClaudeService");
+
+            // Log the first part of the response for debugging
+            var responsePreview = response.Length > 1000 ? response.Substring(0, 1000) + "..." : response;
+            LoggingService.LogError($"Claude response preview: {responsePreview}", null, "ClaudeService");
+
             return null;
         }
     }
