@@ -96,12 +96,12 @@
     <!-- Popup Content Card -->
     <Border Background="#1A1F2E" CornerRadius="16"
             BorderBrush="#7C3AED" BorderThickness="2"
-            Width="400" Height="280">
+            Width="400" Height="320">
         <Border.Effect>
             <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.6" BlurRadius="32"/>
         </Border.Effect>
 
-        <StackPanel Margin="32,24" VerticalAlignment="Center">
+        <StackPanel Margin="32,28" VerticalAlignment="Top">
             <!-- Compact Header -->
             <StackPanel Orientation="Horizontal" Margin="0,0,0,18" HorizontalAlignment="Center">
                 <TextBlock Text="✨" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>

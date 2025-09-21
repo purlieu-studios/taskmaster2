@@ -407,7 +407,8 @@
 
         <!-- New Task Popup Overlay -->
         <Grid x:Name="PopupOverlay" Background="#80000000"
-              Visibility="{Binding IsNewTaskPopupVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+              Visibility="{Binding IsNewTaskPopupVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+              Panel.ZIndex="1000">
             <Grid.InputBindings>
                 <MouseBinding MouseAction="LeftClick" Command="{Binding CloseNewTaskPopupCommand}"/>
             </Grid.InputBindings>
