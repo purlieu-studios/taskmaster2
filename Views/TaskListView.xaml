@@ -1,9 +1,14 @@
 <UserControl x:Class="TaskMaster.Views.TaskListView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:TaskMaster.ViewModels">
+             xmlns:vm="clr-namespace:TaskMaster.ViewModels"
+             xmlns:converters="clr-namespace:TaskMaster.Converters"
+             xmlns:local="clr-namespace:TaskMaster.Converters">
 
     <UserControl.Resources>
+        <!-- Converters -->
+        <converters:PriorityToColorConverter x:Key="PriorityToColorConverter"/>
+
         <!-- Task Card Style -->
         <Style x:Key="TaskCard" TargetType="Border">
             <Setter Property="Background" Value="#1A1F2E"/>
@@ -52,6 +57,45 @@
             <Setter Property="HorizontalAlignment" Value="Left"/>
         </Style>
 
+        <!-- Compact Row Style -->
+        <Style x:Key="CompactRow" TargetType="Border">
+            <Setter Property="Background" Value="#1A1F2E"/>
+            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#374151"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Delete Button Style -->
+        <Style x:Key="DeleteButton" TargetType="Button">
+            <Setter Property="Background" Value="#EF4444"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#DC2626"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Priority Indicator Style -->
+        <Style x:Key="PriorityIndicator" TargetType="Ellipse">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Height" Value="8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+
         <!-- Card Button Style -->
         <Style x:Key="CardButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -69,13 +113,48 @@
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Task Cards in ScrollViewer -->
-        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      Padding="24,20">
+        <!-- Header with View Toggle -->
+        <Border Grid.Row="0" Background="#1A1F2E" BorderBrush="#374151" BorderThickness="0,0,0,1" Padding="24,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="Task List" FontSize="18" FontWeight="SemiBold"
+                           Foreground="#F9FAFB" VerticalAlignment="Center"/>
+
+                <Button Grid.Column="1" Command="{Binding ToggleViewCommand}"
+                        Background="#374151" BorderBrush="#6B7280" BorderThickness="1"
+                        Padding="12,6" FontSize="12" Foreground="#F9FAFB">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#4B5563"/>
+                                    <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding IsCompactView, Converter={x:Static local:BoolToViewTextConverter.Instance}}"/>
+                            <TextBlock Text=" View" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </Button.Content>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Task List View -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Padding="{Binding IsCompactView, Converter={x:Static local:BoolToPaddingConverter.Instance}}">
             <ItemsControl ItemsSource="{Binding FilteredTasks}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -84,139 +163,297 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Button Command="{Binding DataContext.SelectTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}" Style="{StaticResource CardButton}">
-                            <Border Style="{StaticResource TaskCard}">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>  <!-- Header Row -->
-                                        <RowDefinition Height="Auto"/>  <!-- Title Row -->
-                                        <RowDefinition Height="*"/>     <!-- Summary Row -->
-                                        <RowDefinition Height="Auto"/>  <!-- Footer Row -->
-                                    </Grid.RowDefinitions>
+                        <!-- Switch between Card and Compact views -->
+                        <ContentControl Content="{Binding}">
+                            <ContentControl.Style>
+                                <Style TargetType="ContentControl">
+                                    <Setter Property="ContentTemplate">
+                                        <Setter.Value>
+                                            <!-- Card View Template -->
+                                            <DataTemplate>
+                                                <Grid>
+                                                    <!-- Card Border (non-clickable) -->
+                                                    <Border Style="{StaticResource TaskCard}">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>  <!-- Header Row -->
+                                                                <RowDefinition Height="Auto"/>  <!-- Title Row -->
+                                                                <RowDefinition Height="*"/>     <!-- Summary Row -->
+                                                                <RowDefinition Height="Auto"/>  <!-- Footer Row -->
+                                                            </Grid.RowDefinitions>
 
-                                    <!-- Header Row: Number and Status -->
-                                    <Grid Grid.Row="0" Margin="0,0,0,12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
+                                                            <!-- Header Row: Number, Status, and Delete Button -->
+                                                            <Grid Grid.Row="0" Margin="0,0,0,12">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
 
-                                        <!-- Task Number -->
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                            <TextBlock Text="{Binding Number, StringFormat='#{0}'}"
-                                                       Foreground="#A78BFA" FontWeight="Bold" FontSize="16"
-                                                       VerticalAlignment="Center"/>
-                                            <Border Style="{StaticResource TypeBadge}" Margin="12,0,0,0">
-                                                <TextBlock Foreground="#D1D5DB" FontSize="10" FontWeight="Medium">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Type}" Value="feature">
-                                                                    <Setter Property="Text" Value="🚀 FEATURE"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Type}" Value="bug">
-                                                                    <Setter Property="Text" Value="🐛 BUG"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Type}" Value="enhancement">
-                                                                    <Setter Property="Text" Value="✨ ENHANCEMENT"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Type}" Value="test">
-                                                                    <Setter Property="Text" Value="🧪 TEST"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Type}" Value="refactor">
-                                                                    <Setter Property="Text" Value="🔧 REFACTOR"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                        </StackPanel>
+                                                                <!-- Priority Indicator -->
+                                                                <Ellipse Grid.Column="0" Style="{StaticResource PriorityIndicator}"
+                                                                         Fill="{Binding Priority, Converter={StaticResource PriorityToColorConverter}}"/>
 
-                                        <!-- Status Badge and Date -->
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                            <Border>
-                                                <Border.Style>
-                                                    <Style TargetType="Border" BasedOn="{StaticResource StatusBadge}">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Todo">
-                                                                <Setter Property="Background" Value="#374151"/>
-                                                                <Setter Property="BorderBrush" Value="#6B7280"/>
-                                                                <Setter Property="BorderThickness" Value="1"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="InProgress">
-                                                                <Setter Property="Background" Value="#F59E0B"/>
-                                                                <Setter Property="BorderBrush" Value="#F59E0B"/>
-                                                                <Setter Property="BorderThickness" Value="1"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Done">
-                                                                <Setter Property="Background" Value="#10B981"/>
-                                                                <Setter Property="BorderBrush" Value="#10B981"/>
-                                                                <Setter Property="BorderThickness" Value="1"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Status}" Value="Cancelled">
-                                                                <Setter Property="Background" Value="#EF4444"/>
-                                                                <Setter Property="BorderBrush" Value="#EF4444"/>
-                                                                <Setter Property="BorderThickness" Value="1"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock Foreground="White" FontSize="11" FontWeight="SemiBold">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Status}" Value="Todo">
-                                                                    <Setter Property="Text" Value="📝 TODO"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Status}" Value="InProgress">
-                                                                    <Setter Property="Text" Value="⏳ IN PROGRESS"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Status}" Value="Done">
-                                                                    <Setter Property="Text" Value="✅ DONE"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Status}" Value="Cancelled">
-                                                                    <Setter Property="Text" Value="❌ CANCELLED"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                            <TextBlock Text="{Binding Created, StringFormat='MMM dd'}"
-                                                       Foreground="#6B7280" FontSize="12" FontWeight="Medium"
-                                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
-                                        </StackPanel>
-                                    </Grid>
+                                                                <!-- Task Number -->
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding Number}" Foreground="#A78BFA" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                                                                    <Border Style="{StaticResource TypeBadge}" Margin="12,0,0,0">
+                                                                        <TextBlock Foreground="#D1D5DB" FontSize="10" FontWeight="Medium">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="feature">
+                                                                                            <Setter Property="Text" Value="🚀 FEATURE"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="bug">
+                                                                                            <Setter Property="Text" Value="🐛 BUG"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="enhancement">
+                                                                                            <Setter Property="Text" Value="✨ ENHANCEMENT"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="test">
+                                                                                            <Setter Property="Text" Value="🧪 TEST"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="refactor">
+                                                                                            <Setter Property="Text" Value="🔧 REFACTOR"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+                                                                    </Border>
+                                                                </StackPanel>
 
-                                    <!-- Title Row -->
-                                    <TextBlock Grid.Row="1" Text="{Binding Title}" FontWeight="SemiBold" FontSize="18"
-                                               Foreground="#F9FAFB" TextWrapping="Wrap"
-                                               Margin="0,0,0,8" LineHeight="24"/>
+                                                                <!-- Status Badge -->
+                                                                <Border Grid.Column="2">
+                                                                    <Border.Style>
+                                                                        <Style TargetType="Border" BasedOn="{StaticResource StatusBadge}">
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Todo">
+                                                                                    <Setter Property="Background" Value="#374151"/>
+                                                                                    <Setter Property="BorderBrush" Value="#6B7280"/>
+                                                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="InProgress">
+                                                                                    <Setter Property="Background" Value="#F59E0B"/>
+                                                                                    <Setter Property="BorderBrush" Value="#F59E0B"/>
+                                                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Done">
+                                                                                    <Setter Property="Background" Value="#10B981"/>
+                                                                                    <Setter Property="BorderBrush" Value="#10B981"/>
+                                                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                                                                    <Setter Property="Background" Value="#EF4444"/>
+                                                                                    <Setter Property="BorderBrush" Value="#EF4444"/>
+                                                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Border.Style>
+                                                                    <TextBlock Foreground="White" FontSize="11" FontWeight="SemiBold">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Status}" Value="Todo">
+                                                                                        <Setter Property="Text" Value="📝 TODO"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding Status}" Value="InProgress">
+                                                                                        <Setter Property="Text" Value="⏳ IN PROGRESS"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding Status}" Value="Done">
+                                                                                        <Setter Property="Text" Value="✅ DONE"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                                                                        <Setter Property="Text" Value="❌ CANCELLED"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </Border>
 
-                                    <!-- Summary Row -->
-                                    <TextBlock Grid.Row="2" Text="{Binding Summary}" FontSize="13" Foreground="#9CA3AF"
-                                               TextWrapping="Wrap" LineHeight="20"
-                                               Margin="0,0,0,16" VerticalAlignment="Top"/>
+                                                                <!-- Delete Button -->
+                                                                <Button Grid.Column="3" Content="✕" Panel.ZIndex="100"
+                                                                        Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                        CommandParameter="{Binding}" Style="{StaticResource DeleteButton}"
+                                                                        ToolTip="Delete task" Width="24" Height="24"/>
+                                                            </Grid>
 
-                                    <!-- Footer Row: Additional metadata can go here -->
-                                    <Grid Grid.Row="3">
-                                        <TextBlock Text="Click to view details" FontSize="11"
-                                                   Foreground="#7C3AED" FontStyle="Italic"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
-                                    </Grid>
-                                </Grid>
-                            </Border>
-                        </Button>
+                                                            <!-- Title Row (clickable for selection) -->
+                                                            <TextBlock Grid.Row="1" Text="{Binding Title}" FontWeight="SemiBold" FontSize="18"
+                                                                       Foreground="#F9FAFB" TextWrapping="Wrap"
+                                                                       Margin="0,0,0,8" LineHeight="24" Cursor="Hand">
+                                                                <TextBlock.InputBindings>
+                                                                    <MouseBinding MouseAction="LeftClick"
+                                                                                 Command="{Binding DataContext.SelectTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                                 CommandParameter="{Binding}"/>
+                                                                </TextBlock.InputBindings>
+                                                            </TextBlock>
+
+                                                            <!-- Summary Row (clickable for selection) -->
+                                                            <TextBlock Grid.Row="2" Text="{Binding Summary}" FontSize="13" Foreground="#9CA3AF"
+                                                                       TextWrapping="Wrap" LineHeight="20"
+                                                                       Margin="0,0,0,16" VerticalAlignment="Top" Cursor="Hand">
+                                                                <TextBlock.InputBindings>
+                                                                    <MouseBinding MouseAction="LeftClick"
+                                                                                 Command="{Binding DataContext.SelectTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                                 CommandParameter="{Binding}"/>
+                                                                </TextBlock.InputBindings>
+                                                            </TextBlock>
+
+                                                            <!-- Footer Row: Additional metadata can go here -->
+                                                            <Grid Grid.Row="3">
+                                                                <TextBlock Text="Click to view details" FontSize="11"
+                                                                           Foreground="#7C3AED" FontStyle="Italic"
+                                                                           HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                                                            </Grid>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding DataContext.IsCompactView, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                                            <Setter Property="ContentTemplate">
+                                                <Setter.Value>
+                                                    <!-- Compact View Template -->
+                                                    <DataTemplate>
+                                                        <Grid>
+                                                            <!-- Compact Row Border (non-clickable) -->
+                                                            <Border Style="{StaticResource CompactRow}">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto"/> <!-- Priority -->
+                                                                        <ColumnDefinition Width="Auto"/> <!-- Number -->
+                                                                        <ColumnDefinition Width="*"/>    <!-- Title -->
+                                                                        <ColumnDefinition Width="Auto"/> <!-- Type -->
+                                                                        <ColumnDefinition Width="Auto"/> <!-- Status -->
+                                                                        <ColumnDefinition Width="Auto"/> <!-- Date -->
+                                                                        <ColumnDefinition Width="Auto"/> <!-- Delete -->
+                                                                    </Grid.ColumnDefinitions>
+
+                                                                    <!-- Priority Indicator -->
+                                                                    <Ellipse Grid.Column="0" Style="{StaticResource PriorityIndicator}"
+                                                                             Fill="{Binding Priority, Converter={StaticResource PriorityToColorConverter}}"/>
+
+                                                                    <!-- Task Number -->
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Number}" Foreground="#A78BFA" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                                                                    <!-- Title (clickable) -->
+                                                                    <TextBlock Grid.Column="2" Text="{Binding Title}" FontWeight="Medium" FontSize="14"
+                                                                               Foreground="#F9FAFB" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                               Margin="0,0,12,0" Cursor="Hand">
+                                                                        <TextBlock.InputBindings>
+                                                                            <MouseBinding MouseAction="LeftClick"
+                                                                                         Command="{Binding DataContext.SelectTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                                         CommandParameter="{Binding}"/>
+                                                                        </TextBlock.InputBindings>
+                                                                    </TextBlock>
+
+                                                                    <!-- Type Badge -->
+                                                                    <Border Grid.Column="3" Style="{StaticResource TypeBadge}" Margin="0,0,12,0">
+                                                                        <TextBlock Foreground="#D1D5DB" FontSize="9" FontWeight="Medium">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="feature">
+                                                                                            <Setter Property="Text" Value="🚀"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="bug">
+                                                                                            <Setter Property="Text" Value="🐛"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="enhancement">
+                                                                                            <Setter Property="Text" Value="✨"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="test">
+                                                                                            <Setter Property="Text" Value="🧪"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Type}" Value="refactor">
+                                                                                            <Setter Property="Text" Value="🔧"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+                                                                    </Border>
+
+                                                                    <!-- Status Badge -->
+                                                                    <Border Grid.Column="4" Margin="0,0,12,0">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Setter Property="CornerRadius" Value="8"/>
+                                                                                <Setter Property="Padding" Value="6,2"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Status}" Value="Todo">
+                                                                                        <Setter Property="Background" Value="#374151"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding Status}" Value="InProgress">
+                                                                                        <Setter Property="Background" Value="#F59E0B"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding Status}" Value="Done">
+                                                                                        <Setter Property="Background" Value="#10B981"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                                                                        <Setter Property="Background" Value="#EF4444"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
+                                                                        <TextBlock Foreground="White" FontSize="9" FontWeight="SemiBold">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding Status}" Value="Todo">
+                                                                                            <Setter Property="Text" Value="📝"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Status}" Value="InProgress">
+                                                                                            <Setter Property="Text" Value="⏳"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Status}" Value="Done">
+                                                                                            <Setter Property="Text" Value="✅"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                                                                            <Setter Property="Text" Value="❌"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+                                                                    </Border>
+
+                                                                    <!-- Date -->
+                                                                    <TextBlock Grid.Column="5" Text="{Binding Created, StringFormat='{}{0:MMM dd}'}"
+                                                                               Foreground="#6B7280" FontSize="11" FontWeight="Medium"
+                                                                               VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                                                                    <!-- Delete Button -->
+                                                                    <Button Grid.Column="6" Content="✕" Panel.ZIndex="100"
+                                                                            Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                            CommandParameter="{Binding}" Style="{StaticResource DeleteButton}"
+                                                                            Width="20" Height="20" FontSize="9"
+                                                                            ToolTip="Delete task"/>
+                                                                </Grid>
+                                                            </Border>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ContentControl.Style>
+                        </ContentControl>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
 
         <!-- Pagination Footer -->
-        <Border Grid.Row="1" Background="#1A1F2E" BorderBrush="#374151" BorderThickness="0,1,0,0" Padding="24,16">
+        <Border Grid.Row="2" Background="#1A1F2E" BorderBrush="#374151" BorderThickness="0,1,0,0" Padding="24,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>

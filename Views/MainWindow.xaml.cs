@@ -22,9 +22,8 @@ public partial class MainWindow : Window
         {
             _mainViewModel = mainViewModel;
 
-            // Create and assign TaskListViewModel to TaskListView
-            _taskListViewModel = new TaskListViewModel();
-            TaskListView.DataContext = _taskListViewModel;
+            // Get reference to TaskListView's ViewModel
+            _taskListViewModel = TaskListView.ViewModel;
 
             // Set up task selection handler
             _taskListViewModel.PropertyChanged += (s, args) =>

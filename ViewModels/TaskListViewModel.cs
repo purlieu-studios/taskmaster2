@@ -1,8 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using System.Windows;
 using TaskMaster.Models;
 using TaskMaster.Services;
+using TaskMaster.Views;
 
 namespace TaskMaster.ViewModels;
 
@@ -47,6 +49,9 @@ public partial class TaskListViewModel : ObservableObject
 
     [ObservableProperty]
     private string _taskCountText = "0 tasks";
+
+    [ObservableProperty]
+    private bool _isCompactView = false;
 
     public TaskListViewModel()
     {
@@ -102,8 +107,8 @@ public partial class TaskListViewModel : ObservableObject
 
             Tasks.Clear();
 
-            // Sort by number descending (newest first)
-            foreach (var task in tasks.OrderByDescending(t => t.Number))
+            // Use database Priority sort order (tasks already sorted by Priority desc, then Number desc)
+            foreach (var task in tasks)
             {
                 Tasks.Add(task);
                 LoggingService.LogInfo($"Added task to list: #{task.Number} - {task.Title}", "TaskListViewModel");
@@ -230,5 +235,72 @@ public partial class TaskListViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void ToggleView()
+    {
+        IsCompactView = !IsCompactView;
+        LoggingService.LogInfo($"View toggled to: {(IsCompactView ? "Compact" : "Card")}", "TaskListViewModel");
+    }
+
+    [RelayCommand]
+    private async Task DeleteTaskAsync(TaskSpec task)
+    {
+        if (task == null) return;
+
+        try
+        {
+            // Show custom confirmation dialog
+            var confirmDialog = new DeleteConfirmationDialog(task)
+            {
+                Owner = Application.Current.MainWindow
+            };
+
+            var result = confirmDialog.ShowDialog();
+
+            if (result == true && confirmDialog.Confirmed)
+            {
+                LoggingService.LogInfo($"Deleting task #{task.Number} - {task.Title}", "TaskListViewModel");
+
+                var success = await _databaseService.DeleteTaskAsync(task.Id);
+
+                if (success)
+                {
+                    // Remove from local collections
+                    Tasks.Remove(task);
+                    if (FilteredTasks.Contains(task))
+                    {
+                        FilteredTasks.Remove(task);
+                    }
+
+                    // Update pagination and counts
+                    ApplyFiltersAndPagination();
+
+                    LoggingService.LogInfo($"Task #{task.Number} deleted successfully", "TaskListViewModel");
+
+                    // Notify that task was deleted
+                    TaskDeleted?.Invoke(this, task);
+                }
+                else
+                {
+                    MessageBox.Show(
+                        $"Failed to delete task #{task.Number}. Please try again.",
+                        "Delete Failed",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Error deleting task #{task.Number}", ex, "TaskListViewModel");
+            MessageBox.Show(
+                $"An error occurred while deleting the task: {ex.Message}",
+                "Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
     public event EventHandler<TaskSpec>? TaskSelected;
+    public event EventHandler<TaskSpec>? TaskDeleted;
 }
