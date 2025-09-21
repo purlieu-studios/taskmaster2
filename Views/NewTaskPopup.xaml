@@ -94,25 +94,25 @@
     </UserControl.Resources>
 
     <!-- Popup Content Card -->
-    <Border Background="#141925" CornerRadius="12"
-            BorderBrush="#374151" BorderThickness="1"
-            MaxWidth="420" MinWidth="380">
+    <Border Background="#1A1F2E" CornerRadius="16"
+            BorderBrush="#7C3AED" BorderThickness="2"
+            Width="400" Height="280">
         <Border.Effect>
-            <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.4" BlurRadius="24"/>
+            <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.6" BlurRadius="32"/>
         </Border.Effect>
 
-        <StackPanel Margin="24,20">
+        <StackPanel Margin="32,24" VerticalAlignment="Center">
             <!-- Compact Header -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                <TextBlock Text="✨" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                <TextBlock Text="Create New Task" FontSize="16" FontWeight="Bold"
-                           Foreground="{StaticResource PurplePinkGradient}" VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,18" HorizontalAlignment="Center">
+                <TextBlock Text="✨" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Text="Create New Task" FontSize="18" FontWeight="Bold"
+                           Foreground="#FFFFFF" VerticalAlignment="Center"/>
             </StackPanel>
 
             <!-- Project Selection -->
-            <StackPanel Margin="0,0,0,12">
-                <TextBlock Text="Project" FontWeight="SemiBold" Margin="0,0,0,6"
-                           Foreground="#FFFFFF" FontSize="11"/>
+            <StackPanel Margin="0,0,0,14">
+                <TextBlock Text="Project" FontWeight="SemiBold" Margin="0,0,0,4"
+                           Foreground="#E5E7EB" FontSize="12"/>
                 <ComboBox Name="ProjectComboBox"
                           ItemsSource="{Binding Projects}"
                           SelectedItem="{Binding SelectedProject}"
@@ -121,18 +121,18 @@
             </StackPanel>
 
             <!-- Task Title -->
-            <StackPanel Margin="0,0,0,12">
-                <TextBlock Text="Task Title" FontWeight="SemiBold" Margin="0,0,0,6"
-                           Foreground="#FFFFFF" FontSize="11"/>
+            <StackPanel Margin="0,0,0,14">
+                <TextBlock Text="Task Title" FontWeight="SemiBold" Margin="0,0,0,4"
+                           Foreground="#E5E7EB" FontSize="12"/>
                 <TextBox Name="TitleTextBox"
                          Text="{Binding TaskTitle, UpdateSourceTrigger=PropertyChanged}"
                          Style="{StaticResource CompactTextBox}"/>
             </StackPanel>
 
             <!-- Task Type -->
-            <StackPanel Margin="0,0,0,18">
-                <TextBlock Text="Task Type" FontWeight="SemiBold" Margin="0,0,0,6"
-                           Foreground="#FFFFFF" FontSize="11"/>
+            <StackPanel Margin="0,0,0,20">
+                <TextBlock Text="Task Type" FontWeight="SemiBold" Margin="0,0,0,4"
+                           Foreground="#E5E7EB" FontSize="12"/>
                 <ComboBox Name="TypeComboBox"
                           SelectedValue="{Binding TaskType}"
                           Style="{StaticResource CompactComboBox}">
@@ -145,9 +145,9 @@
             </StackPanel>
 
             <!-- Action Buttons -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Content="Cancel" Name="CancelButton" Click="CancelButton_Click"
-                        Style="{StaticResource CompactGhostButton}" Margin="0,0,8,0"/>
+                        Style="{StaticResource CompactGhostButton}" Margin="0,0,12,0"/>
                 <Button Content="✨ Create Task" Name="CreateButton" Click="CreateButton_Click"
                         Style="{StaticResource CompactPrimaryButton}"
                         IsEnabled="{Binding CanCreateTask}"/>
