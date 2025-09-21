@@ -2,9 +2,6 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:TaskMaster.ViewModels">
-    <UserControl.DataContext>
-        <vm:TaskListViewModel/>
-    </UserControl.DataContext>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -25,7 +22,7 @@
                 </Grid.ColumnDefinitions>
 
                 <Label Grid.Column="0" Content="Status:" VerticalAlignment="Center"/>
-                <ComboBox Grid.Column="1" SelectedValue="{Binding StatusFilter}" VerticalAlignment="Center" Margin="0,0,10,0">
+                <ComboBox Grid.Column="1" SelectedValue="{Binding StatusFilter}" SelectedValuePath="Content" VerticalAlignment="Center" Margin="0,0,10,0">
                     <ComboBoxItem Content="All" IsSelected="True"/>
                     <ComboBoxItem Content="Todo"/>
                     <ComboBoxItem Content="InProgress"/>
@@ -34,8 +31,9 @@
                 </ComboBox>
 
                 <Label Grid.Column="2" Content="Type:" VerticalAlignment="Center"/>
-                <ComboBox Grid.Column="3" SelectedValue="{Binding TypeFilter}" VerticalAlignment="Center" Margin="0,0,10,0">
+                <ComboBox Grid.Column="3" SelectedValue="{Binding TypeFilter}" SelectedValuePath="Content" VerticalAlignment="Center" Margin="0,0,10,0">
                     <ComboBoxItem Content="All" IsSelected="True"/>
+                    <ComboBoxItem Content="test"/>
                     <ComboBoxItem Content="feature"/>
                     <ComboBoxItem Content="bug"/>
                     <ComboBoxItem Content="enhancement"/>
@@ -49,7 +47,8 @@
         </Border>
 
         <!-- Task List -->
-        <DataGrid Grid.Row="1" ItemsSource="{Binding FilteredTasks}" SelectedItem="{Binding SelectedTask}"
+        <DataGrid x:Name="TaskDataGrid" Grid.Row="1" ItemsSource="{Binding FilteredTasks}"
+                  SelectedItem="{Binding SelectedTask, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                   SelectionMode="Single" IsReadOnly="True"
@@ -101,7 +100,7 @@
                     <Button Content="▶▶" Command="{Binding LastPageCommand}" Width="30" Margin="5,0,0,0"/>
                 </StackPanel>
 
-                <ComboBox Grid.Column="4" SelectedValue="{Binding PageSize}" VerticalAlignment="Center" Width="80" Margin="10,0,0,0">
+                <ComboBox Grid.Column="4" SelectedValue="{Binding PageSize}" SelectedValuePath="Content" VerticalAlignment="Center" Width="80" Margin="10,0,0,0">
                     <ComboBoxItem Content="10"/>
                     <ComboBoxItem Content="25" IsSelected="True"/>
                     <ComboBoxItem Content="50"/>

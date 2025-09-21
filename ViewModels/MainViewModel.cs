@@ -290,6 +290,7 @@ public partial class MainViewModel : ObservableObject
                 IsInferenceValid = true;
                 IsInferenceStale = false;
                 InferenceStatus = "Inference completed successfully";
+                LoggingService.LogInfo("IsInferenceValid set to true after inference", "MainViewModel");
 
                 LoggingService.LogInfo("Inference completed successfully", "MainViewModel");
             }
@@ -344,15 +345,24 @@ public partial class MainViewModel : ObservableObject
     {
         if (!IsInferenceValid) return;
 
+        LoggingService.LogInfo($"Validating inferred fields:", "MainViewModel");
+        LoggingService.LogInfo($"  ScopePaths: {ScopePaths}", "MainViewModel");
+        LoggingService.LogInfo($"  AcceptanceCriteria: {AcceptanceCriteria}", "MainViewModel");
+        LoggingService.LogInfo($"  TestPlan: {TestPlan}", "MainViewModel");
+        LoggingService.LogInfo($"  RequiredDocs: {RequiredDocs}", "MainViewModel");
+
         var errors = ValidationService.ValidateInferredFields(ScopePaths, AcceptanceCriteria, TestPlan, RequiredDocs);
 
         if (errors.Any())
         {
+            LoggingService.LogInfo($"Validation errors found: {string.Join(", ", errors)}", "MainViewModel");
             ValidationErrors = string.Join(Environment.NewLine, errors);
             IsInferenceValid = false;
+            LoggingService.LogInfo("IsInferenceValid set to false due to validation errors", "MainViewModel");
         }
         else
         {
+            LoggingService.LogInfo("All inferred fields are valid", "MainViewModel");
             ValidateInput(); // Re-validate base input
         }
     }
@@ -365,8 +375,14 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
+            LoggingService.LogInfo($"Starting SaveSpecAsync - Project: {SelectedProject.Name} (ID: {SelectedProject.Id})", "MainViewModel");
+            LoggingService.LogInfo($"Title: {Title}, Type: {Type}", "MainViewModel");
+
             var taskNumber = await _databaseService.GetNextTaskNumberAsync(SelectedProject.Id);
+            LoggingService.LogInfo($"Got task number: {taskNumber}", "MainViewModel");
+
             var slug = SlugService.GenerateSlug(Title);
+            LoggingService.LogInfo($"Generated slug: {slug}", "MainViewModel");
 
             var taskSpec = new TaskSpec
             {
@@ -386,7 +402,10 @@ public partial class MainViewModel : ObservableObject
                 NextSteps = NextSteps
             };
 
-            await _databaseService.SaveTaskSpecAsync(taskSpec);
+            LoggingService.LogInfo($"Created TaskSpec object for task #{taskNumber}", "MainViewModel");
+
+            var savedTaskSpec = await _databaseService.SaveTaskSpecAsync(taskSpec);
+            LoggingService.LogInfo($"SaveTaskSpecAsync completed - Task ID: {savedTaskSpec.Id}", "MainViewModel");
 
             var filePath = await _specFileService.SaveSpecToFileAsync(taskSpec, SelectedProject, RepoRoot);
             LastSavedSpecPath = filePath;
@@ -424,6 +443,9 @@ public partial class MainViewModel : ObservableObject
                 LoggingService.LogInfo("Catalog auto-export is disabled", "MainViewModel");
             }
 
+            LoggingService.LogInfo($"Spec file saved to: {filePath}", "MainViewModel");
+            LoggingService.LogInfo($"LastSavedSpecPath set to: {LastSavedSpecPath}", "MainViewModel");
+
             MessageBox.Show($"Spec saved successfully!\nFile: {filePath}\nTask: #{taskNumber}",
                 "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -439,7 +461,9 @@ public partial class MainViewModel : ObservableObject
 
     private bool CanSaveSpec()
     {
-        return SelectedProject != null && IsInferenceValid && !IsInferring;
+        var canSave = SelectedProject != null && IsInferenceValid && !IsInferring;
+        LoggingService.LogInfo($"CanSaveSpec: {canSave} (SelectedProject: {SelectedProject != null}, IsInferenceValid: {IsInferenceValid}, IsInferring: {IsInferring})", "MainViewModel");
+        return canSave;
     }
 
     [RelayCommand(CanExecute = nameof(CanRunPanel))]

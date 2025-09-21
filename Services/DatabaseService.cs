@@ -14,6 +14,8 @@ public class DatabaseService
                                   "TaskMaster", "taskmaster.db");
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
         _connectionString = $"Data Source={dbPath}";
+
+        LoggingService.LogInfo($"DatabaseService initialized with path: {dbPath}", "DatabaseService");
     }
 
     public void InitializeDatabase()
@@ -299,11 +301,17 @@ public class DatabaseService
 
     public async Task<TaskSpec> SaveTaskSpecAsync(TaskSpec taskSpec)
     {
+        LoggingService.LogInfo($"SaveTaskSpecAsync called for task: {taskSpec.Title} (Project ID: {taskSpec.ProjectId})", "DatabaseService");
+
         using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
+        LoggingService.LogInfo($"Database connection opened successfully", "DatabaseService");
+
         if (taskSpec.Id == 0)
         {
+            LoggingService.LogInfo($"Inserting new task spec #{taskSpec.Number}", "DatabaseService");
+
             // Insert new task
             var query = @"
                 INSERT INTO TaskSpecs (
@@ -321,6 +329,7 @@ public class DatabaseService
             AddTaskSpecParameters(command, taskSpec);
 
             taskSpec.Id = Convert.ToInt32(await command.ExecuteScalarAsync());
+            LoggingService.LogInfo($"Task spec inserted with ID: {taskSpec.Id}", "DatabaseService");
         }
         else
         {
@@ -339,8 +348,10 @@ public class DatabaseService
             AddTaskSpecParameters(command, taskSpec);
 
             await command.ExecuteNonQueryAsync();
+            LoggingService.LogInfo($"Task spec updated with ID: {taskSpec.Id}", "DatabaseService");
         }
 
+        LoggingService.LogInfo($"SaveTaskSpecAsync completed successfully for task: {taskSpec.Title}", "DatabaseService");
         return taskSpec;
     }
 

@@ -16,6 +16,11 @@ public partial class TaskListViewModel : ObservableObject
     [ObservableProperty]
     private TaskSpec? _selectedTask;
 
+    partial void OnSelectedTaskChanged(TaskSpec? value)
+    {
+        LoggingService.LogInfo($"Task selection changed: {(value != null ? $"#{value.Number} - {value.Title}" : "null")}", "TaskListViewModel");
+    }
+
     [ObservableProperty]
     private ObservableCollection<TaskSpec> _tasks = new();
 
@@ -69,8 +74,11 @@ public partial class TaskListViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshTasksAsync()
     {
+        LoggingService.LogInfo($"RefreshTasksAsync called - SelectedProject: {SelectedProject?.Name ?? "null"}", "TaskListViewModel");
+
         if (SelectedProject == null)
         {
+            LoggingService.LogInfo("No project selected, clearing task list", "TaskListViewModel");
             Tasks.Clear();
             FilteredTasks.Clear();
             TaskCountText = "0 tasks";
@@ -79,16 +87,21 @@ public partial class TaskListViewModel : ObservableObject
 
         try
         {
+            LoggingService.LogInfo($"Getting tasks for project ID: {SelectedProject.Id}", "TaskListViewModel");
             var tasks = await _databaseService.GetTasksByProjectIdAsync(SelectedProject.Id);
+            LoggingService.LogInfo($"Retrieved {tasks.Count} tasks from database", "TaskListViewModel");
+
             Tasks.Clear();
 
             // Sort by number descending (newest first)
             foreach (var task in tasks.OrderByDescending(t => t.Number))
             {
                 Tasks.Add(task);
+                LoggingService.LogInfo($"Added task to list: #{task.Number} - {task.Title}", "TaskListViewModel");
             }
 
             ApplyFiltersAndPagination();
+            LoggingService.LogInfo($"Task refresh completed - {Tasks.Count} tasks loaded", "TaskListViewModel");
         }
         catch (Exception ex)
         {

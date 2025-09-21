@@ -8,7 +8,10 @@
       "Read(//f/exampleTask/.claude/**)",
       "Bash(git checkout:*)",
       "Bash(gh auth:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(tail:*)",
+      "Bash(dotnet build)",
+      "Bash(dotnet build:*)"
     ],
     "deny": [],
     "ask": []
