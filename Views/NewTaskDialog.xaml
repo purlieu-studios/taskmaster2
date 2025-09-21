@@ -1,10 +1,11 @@
 <Window x:Class="TaskMaster.Views.NewTaskDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Create New Task" Height="500" Width="600"
-        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
-        AllowsTransparency="True" WindowStyle="None"
-        Background="Transparent">
+        Title="Create New Task" Height="600" Width="700"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        Background="#0A0E1B"
+        MinHeight="500" MinWidth="600"
+        MaxHeight="800" MaxWidth="900">
 
     <Window.Resources>
         <!-- Gradient Brushes -->
@@ -22,42 +23,15 @@
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Foreground" Value="#F9FAFB"/>
             <Setter Property="Height" Value="48"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="border" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="12">
-                            <Border.Effect>
-                                <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0" BlurRadius="8"/>
-                            </Border.Effect>
-                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false"
-                                        HorizontalScrollBarVisibility="Hidden"
-                                        VerticalScrollBarVisibility="Hidden"
-                                        Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
-                                <Setter Property="Effect" TargetName="border">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.2" BlurRadius="12"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter Property="BorderBrush" TargetName="border" Value="#EC4899"/>
-                                <Setter Property="Effect" TargetName="border">
-                                    <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="0" Color="#EC4899" Opacity="0.4" BlurRadius="16"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#7C3AED"/>
+                </Trigger>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#EC4899"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Beautiful ComboBox Style -->
@@ -69,75 +43,15 @@
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Foreground" Value="#F9FAFB"/>
             <Setter Property="Height" Value="48"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <ToggleButton x:Name="ToggleButton" Grid.Column="2"
-                                        Focusable="false" IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                        ClickMode="Press" Background="{TemplateBinding Background}"
-                                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border x:Name="border" Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="12">
-                                            <Border.Effect>
-                                                <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0" BlurRadius="8"/>
-                                            </Border.Effect>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="24"/>
-                                                </Grid.ColumnDefinitions>
-                                                <Path x:Name="Arrow" Grid.Column="1" Fill="#9CA3AF" HorizontalAlignment="Center"
-                                                      VerticalAlignment="Center" Data="M 0 0 L 4 4 L 8 0 Z"/>
-                                            </Grid>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
-                                                <Setter Property="Effect" TargetName="border">
-                                                    <Setter.Value>
-                                                        <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.2" BlurRadius="12"/>
-                                                    </Setter.Value>
-                                                </Setter>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
-                                            Content="{TemplateBinding SelectionBoxItem}"
-                                            ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                            ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
-                                            Margin="{TemplateBinding Padding}" VerticalAlignment="Center"
-                                            HorizontalAlignment="Left"/>
-                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                                <Grid x:Name="DropDown" SnapsToDevicePixels="True"
-                                      MinWidth="{TemplateBinding ActualWidth}" MaxHeight="200">
-                                    <Border x:Name="DropDownBorder" Background="#1F2937" BorderThickness="2"
-                                            BorderBrush="#374151" CornerRadius="12" Margin="0,4,0,0">
-                                        <Border.Effect>
-                                            <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.3" BlurRadius="16"/>
-                                        </Border.Effect>
-                                        <ScrollViewer SnapsToDevicePixels="True">
-                                            <StackPanel IsItemsHost="True"/>
-                                        </ScrollViewer>
-                                    </Border>
-                                </Grid>
-                            </Popup>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter Property="BorderBrush" Value="#EC4899"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#7C3AED"/>
+                </Trigger>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#EC4899"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Gradient Primary Button -->
@@ -223,18 +137,17 @@
     </Window.Resources>
 
     <Grid>
-        <!-- Beautiful Modal Overlay -->
-        <Border Background="#000000" Opacity="0.6"/>
+        <!-- Main Content with ScrollViewer -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Padding="40,30">
+            <Border Background="#141925" CornerRadius="16"
+                    BorderBrush="#374151" BorderThickness="1"
+                    Margin="0,0,0,20">
+                <Border.Effect>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.3" BlurRadius="16"/>
+                </Border.Effect>
 
-        <!-- Glass Morphism Modal Card -->
-        <Border Background="#141925" CornerRadius="20" MaxWidth="540" MaxHeight="480"
-                HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20"
-                BorderBrush="#374151" BorderThickness="1">
-            <Border.Effect>
-                <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.4" BlurRadius="32"/>
-            </Border.Effect>
-
-            <StackPanel Margin="40,36">
+                <StackPanel Margin="32,24">
                 <!-- Beautiful Header -->
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,28">
                     <TextBlock Text="✨" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center">
@@ -251,7 +164,7 @@
                 </StackPanel>
 
                 <!-- Project Selection -->
-                <StackPanel Margin="0,0,0,24">
+                <StackPanel Margin="0,0,0,20">
                     <TextBlock Text="Project" FontWeight="SemiBold" Margin="0,0,0,12"
                                Foreground="#F9FAFB" FontSize="15"/>
                     <ComboBox Name="ProjectComboBox"
@@ -264,7 +177,7 @@
                 </StackPanel>
 
                 <!-- Task Title -->
-                <StackPanel Margin="0,0,0,24">
+                <StackPanel Margin="0,0,0,20">
                     <TextBlock Text="Task Title" FontWeight="SemiBold" Margin="0,0,0,12"
                                Foreground="#F9FAFB" FontSize="15"/>
                     <TextBox Name="TitleTextBox"
@@ -275,7 +188,7 @@
                 </StackPanel>
 
                 <!-- Task Type -->
-                <StackPanel Margin="0,0,0,36">
+                <StackPanel Margin="0,0,0,24">
                     <TextBlock Text="Task Type" FontWeight="SemiBold" Margin="0,0,0,12"
                                Foreground="#F9FAFB" FontSize="15"/>
                     <ComboBox Name="TypeComboBox"
