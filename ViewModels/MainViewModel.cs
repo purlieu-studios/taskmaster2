@@ -108,6 +108,9 @@ public partial class MainViewModel : ObservableObject
     private string _statusFilter = "All";
 
     [ObservableProperty]
+    private string _searchText = "";
+
+    [ObservableProperty]
     private bool _isTaskDetailPanelOpen = false;
 
     [ObservableProperty]

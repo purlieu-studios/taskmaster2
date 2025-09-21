@@ -4,59 +4,66 @@
              xmlns:vm="clr-namespace:TaskMaster.ViewModels">
 
     <UserControl.Resources>
-        <!-- Beautiful DataGrid Style -->
-        <Style x:Key="BeautifulDataGridStyle" TargetType="DataGrid">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="GridLinesVisibility" Value="None"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-            <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="CanUserAddRows" Value="False"/>
-            <Setter Property="CanUserDeleteRows" Value="False"/>
-            <Setter Property="CanUserReorderColumns" Value="False"/>
-            <Setter Property="CanUserResizeRows" Value="False"/>
-            <Setter Property="AlternatingRowBackground" Value="Transparent"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="RowHeight" Value="56"/>
-            <Setter Property="Foreground" Value="#F9FAFB"/>
-        </Style>
-
-        <!-- Beautiful DataGrid Header Style -->
-        <Style x:Key="BeautifulColumnHeaderStyle" TargetType="DataGridColumnHeader">
+        <!-- Task Card Style -->
+        <Style x:Key="TaskCard" TargetType="Border">
             <Setter Property="Background" Value="#1A1F2E"/>
-            <Setter Property="Foreground" Value="#F9FAFB"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="20,16"/>
             <Setter Property="BorderBrush" Value="#374151"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Template">
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Margin" Value="0,0,0,20"/>
+            <Setter Property="MinHeight" Value="140"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect">
                 <Setter.Value>
-                    <ControlTemplate TargetType="DataGridColumnHeader">
-                        <Border x:Name="headerBorder"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                            VerticalAlignment="Center"
-                                            TextBlock.Foreground="{TemplateBinding Foreground}"/>
-                        </Border>
-                    </ControlTemplate>
+                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.2" BlurRadius="8"/>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#7C3AED"/>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.3" BlurRadius="16"/>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
-
-        <!-- Default DataGrid Header Style -->
-        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource BeautifulColumnHeaderStyle}"/>
 
         <!-- Status Badge Style -->
         <Style x:Key="StatusBadge" TargetType="Border">
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
+        </Style>
+
+        <!-- Type Badge Style -->
+        <Style x:Key="TypeBadge" TargetType="Border">
+            <Setter Property="Background" Value="#374151"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+        </Style>
+
+        <!-- Card Button Style -->
+        <Style x:Key="CardButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
@@ -66,324 +73,243 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Beautiful Task List -->
-        <DataGrid x:Name="TaskDataGrid" Grid.Row="0" ItemsSource="{Binding FilteredTasks}"
-                  SelectedItem="{Binding SelectedTask, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                  Style="{StaticResource BeautifulDataGridStyle}">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="80">
-                    <DataGridTextColumn.HeaderStyle>
-                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource BeautifulColumnHeaderStyle}"/>
-                    </DataGridTextColumn.HeaderStyle>
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#A78BFA"/>
-                            <Setter Property="FontWeight" Value="SemiBold"/>
-                            <Setter Property="Padding" Value="20,0"/>
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="FontSize" Value="13"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="✨ Task Title" Binding="{Binding Title}" Width="*" MinWidth="300">
-                    <DataGridTextColumn.HeaderStyle>
-                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource BeautifulColumnHeaderStyle}"/>
-                    </DataGridTextColumn.HeaderStyle>
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#F9FAFB"/>
-                            <Setter Property="FontWeight" Value="SemiBold"/>
-                            <Setter Property="Padding" Value="20,0"/>
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="FontSize" Value="14"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="🏷️ Type" Binding="{Binding Type}" Width="120">
-                    <DataGridTextColumn.HeaderStyle>
-                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource BeautifulColumnHeaderStyle}"/>
-                    </DataGridTextColumn.HeaderStyle>
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#A78BFA"/>
-                            <Setter Property="Padding" Value="20,0"/>
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="FontWeight" Value="Medium"/>
-                            <Setter Property="FontSize" Value="13"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="📊 Status" Binding="{Binding Status}" Width="140">
-                    <DataGridTextColumn.HeaderStyle>
-                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource BeautifulColumnHeaderStyle}"/>
-                    </DataGridTextColumn.HeaderStyle>
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Padding" Value="20,0"/>
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="FontWeight" Value="SemiBold"/>
-                            <Setter Property="FontSize" Value="13"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="📅 Created" Binding="{Binding Created, StringFormat='MMM dd'}" Width="120">
-                    <DataGridTextColumn.HeaderStyle>
-                        <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource BeautifulColumnHeaderStyle}"/>
-                    </DataGridTextColumn.HeaderStyle>
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#D1D5DB"/>
-                            <Setter Property="Padding" Value="20,0"/>
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                            <Setter Property="FontSize" Value="13"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-            </DataGrid.Columns>
-            <DataGrid.RowStyle>
-                <Style TargetType="DataGridRow">
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                    <Setter Property="Margin" Value="8,2"/>
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="DataGridRow">
-                                <Border x:Name="DGR_Border" Background="{TemplateBinding Background}"
-                                        BorderBrush="{TemplateBinding BorderBrush}"
-                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                        CornerRadius="8" Margin="0,1">
-                                    <Border.Effect>
-                                        <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0" BlurRadius="8"/>
-                                    </Border.Effect>
-                                    <SelectiveScrollingGrid>
-                                        <SelectiveScrollingGrid.ColumnDefinitions>
+        <!-- Task Cards in ScrollViewer -->
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Padding="24,20">
+            <ItemsControl ItemsSource="{Binding FilteredTasks}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Vertical"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Command="{Binding DataContext.SelectTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}" Style="{StaticResource CardButton}">
+                            <Border Style="{StaticResource TaskCard}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>  <!-- Header Row -->
+                                        <RowDefinition Height="Auto"/>  <!-- Title Row -->
+                                        <RowDefinition Height="*"/>     <!-- Summary Row -->
+                                        <RowDefinition Height="Auto"/>  <!-- Footer Row -->
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Header Row: Number and Status -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
-                                        </SelectiveScrollingGrid.ColumnDefinitions>
-                                        <SelectiveScrollingGrid.RowDefinitions>
-                                            <RowDefinition Height="*"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </SelectiveScrollingGrid.RowDefinitions>
-                                        <DataGridCellsPresenter Grid.Column="1"
-                                                              ItemsPanel="{TemplateBinding ItemsPanel}"
-                                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                                        <DataGridDetailsPresenter Grid.Column="1" Grid.Row="1"
-                                                                SelectiveScrollingGrid.SelectiveScrollingOrientation="{Binding AreRowDetailsFrozen, ConverterParameter={x:Static SelectiveScrollingOrientation.Vertical}, Converter={x:Static DataGrid.RowDetailsScrollingConverter}, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
-                                                                Visibility="{TemplateBinding DetailsVisibility}"/>
-                                        <DataGridRowHeader Grid.RowSpan="2" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical"
-                                                         Visibility="{Binding HeadersVisibility, ConverterParameter={x:Static DataGridHeadersVisibility.Row}, Converter={x:Static DataGrid.HeadersVisibilityConverter}, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"/>
-                                    </SelectiveScrollingGrid>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" TargetName="DGR_Border" Value="#1F2937"/>
-                                        <Setter Property="Effect" TargetName="DGR_Border">
-                                            <Setter.Value>
-                                                <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.2" BlurRadius="12"/>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Trigger>
-                                    <Trigger Property="IsSelected" Value="True">
-                                        <Setter Property="Background" TargetName="DGR_Border" Value="#374151"/>
-                                        <Setter Property="Effect" TargetName="DGR_Border">
-                                            <Setter.Value>
-                                                <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.4" BlurRadius="16"/>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Trigger>
-                                    <MultiTrigger>
-                                        <MultiTrigger.Conditions>
-                                            <Condition Property="IsSelected" Value="True"/>
-                                            <Condition Property="IsMouseOver" Value="True"/>
-                                        </MultiTrigger.Conditions>
-                                        <Setter Property="Background" TargetName="DGR_Border" Value="#4B5563"/>
-                                        <Setter Property="Effect" TargetName="DGR_Border">
-                                            <Setter.Value>
-                                                <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.6" BlurRadius="20"/>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </MultiTrigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding Status}" Value="Done">
-                            <Setter Property="Opacity" Value="0.6"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </DataGrid.RowStyle>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
 
-            <!-- Beautiful Cell Style -->
-            <DataGrid.CellStyle>
-                <Style TargetType="DataGridCell">
-                    <Setter Property="BorderThickness" Value="0"/>
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                    <Style.Triggers>
-                        <Trigger Property="IsSelected" Value="True">
-                            <Setter Property="Background" Value="Transparent"/>
-                            <Setter Property="Foreground" Value="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=Foreground}"/>
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-            </DataGrid.CellStyle>
-        </DataGrid>
+                                        <!-- Task Number -->
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Number, StringFormat='#{0}'}"
+                                                       Foreground="#A78BFA" FontWeight="Bold" FontSize="16"
+                                                       VerticalAlignment="Center"/>
+                                            <Border Style="{StaticResource TypeBadge}" Margin="12,0,0,0">
+                                                <TextBlock Foreground="#D1D5DB" FontSize="10" FontWeight="Medium">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Type}" Value="feature">
+                                                                    <Setter Property="Text" Value="🚀 FEATURE"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Type}" Value="bug">
+                                                                    <Setter Property="Text" Value="🐛 BUG"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Type}" Value="enhancement">
+                                                                    <Setter Property="Text" Value="✨ ENHANCEMENT"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Type}" Value="test">
+                                                                    <Setter Property="Text" Value="🧪 TEST"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Type}" Value="refactor">
+                                                                    <Setter Property="Text" Value="🔧 REFACTOR"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </StackPanel>
 
-        <!-- Beautiful Pagination -->
-        <Border Grid.Row="1" Background="#1A1F2E" BorderBrush="#374151" BorderThickness="0,1,0,0" Padding="32,20">
+                                        <!-- Status Badge and Date -->
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                            <Border>
+                                                <Border.Style>
+                                                    <Style TargetType="Border" BasedOn="{StaticResource StatusBadge}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Todo">
+                                                                <Setter Property="Background" Value="#374151"/>
+                                                                <Setter Property="BorderBrush" Value="#6B7280"/>
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="InProgress">
+                                                                <Setter Property="Background" Value="#F59E0B"/>
+                                                                <Setter Property="BorderBrush" Value="#F59E0B"/>
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Done">
+                                                                <Setter Property="Background" Value="#10B981"/>
+                                                                <Setter Property="BorderBrush" Value="#10B981"/>
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                                                <Setter Property="Background" Value="#EF4444"/>
+                                                                <Setter Property="BorderBrush" Value="#EF4444"/>
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Foreground="White" FontSize="11" FontWeight="SemiBold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Todo">
+                                                                    <Setter Property="Text" Value="📝 TODO"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="InProgress">
+                                                                    <Setter Property="Text" Value="⏳ IN PROGRESS"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Done">
+                                                                    <Setter Property="Text" Value="✅ DONE"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                                                    <Setter Property="Text" Value="❌ CANCELLED"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                            <TextBlock Text="{Binding Created, StringFormat='MMM dd'}"
+                                                       Foreground="#6B7280" FontSize="12" FontWeight="Medium"
+                                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Title Row -->
+                                    <TextBlock Grid.Row="1" Text="{Binding Title}" FontWeight="SemiBold" FontSize="18"
+                                               Foreground="#F9FAFB" TextWrapping="Wrap"
+                                               Margin="0,0,0,8" LineHeight="24"/>
+
+                                    <!-- Summary Row -->
+                                    <TextBlock Grid.Row="2" Text="{Binding Summary}" FontSize="13" Foreground="#9CA3AF"
+                                               TextWrapping="Wrap" LineHeight="20"
+                                               Margin="0,0,0,16" VerticalAlignment="Top"/>
+
+                                    <!-- Footer Row: Additional metadata can go here -->
+                                    <Grid Grid.Row="3">
+                                        <TextBlock Text="Click to view details" FontSize="11"
+                                                   Foreground="#7C3AED" FontStyle="Italic"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Pagination Footer -->
+        <Border Grid.Row="1" Background="#1A1F2E" BorderBrush="#374151" BorderThickness="0,1,0,0" Padding="24,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
+                <!-- Task Count -->
                 <TextBlock Grid.Column="0" Text="{Binding TaskCountText}" VerticalAlignment="Center"
-                           FontWeight="SemiBold" Foreground="#F9FAFB" Margin="0,0,32,0" FontSize="14"/>
+                           FontWeight="Medium" FontSize="13" Foreground="#F9FAFB"/>
 
+                <!-- Pagination Controls -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="⏮" Command="{Binding FirstPageCommand}" Width="36" Height="36" Margin="0,0,6,0"
-                            Background="#1F2937" BorderThickness="1" BorderBrush="#374151" FontWeight="Normal"
-                            FontSize="14" Foreground="#9CA3AF">
+                    <Button Content="⏮️" Command="{Binding FirstPageCommand}"
+                            Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontWeight="Normal"
+                            FontSize="12" Foreground="#9CA3AF" Width="32" Height="28" Margin="0,0,4,0">
                         <Button.Style>
                             <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="{TemplateBinding Background}"
-                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                                    CornerRadius="8">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" TargetName="border" Value="#374151"/>
-                                                    <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
-                                                    <Setter Property="Foreground" Value="#F9FAFB"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                    <Button Content="⏪" Command="{Binding PreviousPageCommand}" Width="36" Height="36" Margin="0,0,12,0"
-                            Background="#1F2937" BorderThickness="1" BorderBrush="#374151" FontWeight="Normal"
-                            FontSize="14" Foreground="#9CA3AF">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="{TemplateBinding Background}"
-                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                                    CornerRadius="8">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" TargetName="border" Value="#374151"/>
-                                                    <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
-                                                    <Setter Property="Foreground" Value="#F9FAFB"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                    <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center" Margin="0,0,6,0"
-                               FontWeight="Bold" FontSize="16" Foreground="#F9FAFB"/>
-                    <TextBlock Text="of" VerticalAlignment="Center" Margin="0,0,6,0"
-                               FontSize="14" Foreground="#D1D5DB"/>
-                    <TextBlock Text="{Binding TotalPages}" VerticalAlignment="Center" Margin="0,0,12,0"
-                               FontWeight="Medium" FontSize="14" Foreground="#A78BFA"/>
-                    <Button Content="⏩" Command="{Binding NextPageCommand}" Width="36" Height="36" Margin="0,0,6,0"
-                            Background="#1F2937" BorderThickness="1" BorderBrush="#374151" FontWeight="Normal"
-                            FontSize="14" Foreground="#9CA3AF">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="{TemplateBinding Background}"
-                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                                    CornerRadius="8">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" TargetName="border" Value="#374151"/>
-                                                    <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
-                                                    <Setter Property="Foreground" Value="#F9FAFB"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                    <Button Content="⏭" Command="{Binding LastPageCommand}" Width="36" Height="36"
-                            Background="#1F2937" BorderThickness="1" BorderBrush="#374151" FontWeight="Normal"
-                            FontSize="14" Foreground="#9CA3AF">
-                        <Button.Style>
-                            <Style TargetType="Button">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="border" Background="{TemplateBinding Background}"
-                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                                    CornerRadius="8">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" TargetName="border" Value="#374151"/>
-                                                    <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
-                                                    <Setter Property="Foreground" Value="#F9FAFB"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Button.Style>
-                    </Button>
-                </StackPanel>
-
-                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="📄 Rows" VerticalAlignment="Center" Margin="0,0,16,0"
-                               FontWeight="Medium" FontSize="13" Foreground="#D1D5DB"/>
-                    <ComboBox SelectedValue="{Binding PageSize}" SelectedValuePath="Content" Width="80" Height="36"
-                              Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontSize="13"
-                              Foreground="#F9FAFB" Padding="12,8">
-                        <ComboBox.Style>
-                            <Style TargetType="ComboBox">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#374151"/>
                                         <Setter Property="BorderBrush" Value="#7C3AED"/>
-                                    </Trigger>
-                                    <Trigger Property="IsFocused" Value="True">
-                                        <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                        <Setter Property="Foreground" Value="#F9FAFB"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
-                        </ComboBox.Style>
-                        <ComboBoxItem Content="10"/>
-                        <ComboBoxItem Content="25" IsSelected="True"/>
-                        <ComboBoxItem Content="50"/>
-                        <ComboBoxItem Content="100"/>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Content="◀️" Command="{Binding PreviousPageCommand}"
+                            Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontWeight="Normal"
+                            FontSize="12" Foreground="#9CA3AF" Width="32" Height="28" Margin="0,0,8,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#374151"/>
+                                        <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                        <Setter Property="Foreground" Value="#F9FAFB"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center" Margin="0,0,6,0"
+                               FontSize="12" Foreground="#F9FAFB" FontWeight="Medium"/>
+                    <TextBlock Text="of" VerticalAlignment="Center" Margin="0,0,6,0"
+                               FontSize="12" Foreground="#D1D5DB"/>
+                    <TextBlock Text="{Binding TotalPages}" VerticalAlignment="Center" Margin="0,0,12,0"
+                               FontSize="12" Foreground="#F9FAFB" FontWeight="Medium"/>
+
+                    <Button Content="▶️" Command="{Binding NextPageCommand}"
+                            Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontWeight="Normal"
+                            FontSize="12" Foreground="#9CA3AF" Width="32" Height="28" Margin="0,0,4,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#374151"/>
+                                        <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                        <Setter Property="Foreground" Value="#F9FAFB"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Content="⏭️" Command="{Binding LastPageCommand}"
+                            Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontWeight="Normal"
+                            FontSize="12" Foreground="#9CA3AF" Width="32" Height="28" Margin="0,0,16,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#374151"/>
+                                        <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                        <Setter Property="Foreground" Value="#F9FAFB"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <TextBlock Text="📄 Cards per page" VerticalAlignment="Center" Margin="0,0,8,0"
+                               FontWeight="Medium" FontSize="11" Foreground="#D1D5DB"/>
+                    <ComboBox SelectedValue="{Binding PageSize}" SelectedValuePath="Content" Width="60" Height="28"
+                              Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontSize="11"
+                              Foreground="#F9FAFB" Padding="8,4">
+                        <ComboBoxItem Content="12"/>
+                        <ComboBoxItem Content="24" IsSelected="True"/>
+                        <ComboBoxItem Content="48"/>
+                        <ComboBoxItem Content="96"/>
                     </ComboBox>
                 </StackPanel>
             </Grid>

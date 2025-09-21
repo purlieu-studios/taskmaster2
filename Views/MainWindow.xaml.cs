@@ -37,6 +37,12 @@ public partial class MainWindow : Window
                 }
             };
 
+            // Set up task selection handler via event
+            _taskListViewModel.TaskSelected += (s, task) =>
+            {
+                _ = _mainViewModel.OpenTaskDetailAsync(task);
+            };
+
             // Handle task detail panel close event
             if (TaskDetailPanel != null)
             {
@@ -68,6 +74,11 @@ public partial class MainWindow : Window
                     _taskListViewModel.TypeFilter = mainViewModel.TypeFilter;
                 }
 
+                if (args.PropertyName == nameof(MainViewModel.SearchText))
+                {
+                    _taskListViewModel.SearchText = mainViewModel.SearchText;
+                }
+
                 // Refresh task list when LastSavedSpecPath changes
                 if (args.PropertyName == nameof(MainViewModel.LastSavedSpecPath))
                 {
@@ -79,6 +90,7 @@ public partial class MainWindow : Window
             _taskListViewModel.SelectedProject = mainViewModel.SelectedProject;
             _taskListViewModel.StatusFilter = mainViewModel.StatusFilter;
             _taskListViewModel.TypeFilter = mainViewModel.TypeFilter;
+            _taskListViewModel.SearchText = mainViewModel.SearchText;
 
             TaskMaster.Services.LoggingService.LogInfo("MainWindow setup completed with new UI structure", "MainWindow");
         }

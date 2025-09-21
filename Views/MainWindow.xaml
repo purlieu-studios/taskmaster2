@@ -243,6 +243,40 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Beautiful TextBox Style -->
+        <Style x:Key="BeautifulTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#F9FAFB"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false"
+                                        HorizontalScrollBarVisibility="Hidden"
+                                        VerticalScrollBarVisibility="Hidden"
+                                        Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#EC4899"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -294,45 +328,55 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="240"/>
+                    <ColumnDefinition Width="200"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="140"/>
+                    <ColumnDefinition Width="200"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="140"/>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="120"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="Project" VerticalAlignment="Center" FontWeight="Medium"
-                           Margin="0,0,16,0" Foreground="#D1D5DB" FontSize="13"/>
-                <ComboBox Grid.Column="1" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
+                <TextBlock Grid.Column="0" Text="🔍 Search" VerticalAlignment="Center" FontWeight="Medium"
+                           Margin="0,0,12,0" Foreground="#D1D5DB" FontSize="13"/>
+                <TextBox Grid.Column="1" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         VerticalAlignment="Center" Margin="0,0,24,0"
+                         Height="24" Style="{StaticResource BeautifulTextBox}"/>
+
+                <TextBlock Grid.Column="2" Text="Project" VerticalAlignment="Center" FontWeight="Medium"
+                           Margin="0,0,12,0" Foreground="#D1D5DB" FontSize="13"/>
+                <ComboBox Grid.Column="3" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
                           DisplayMemberPath="Name" VerticalAlignment="Center" Margin="0,0,24,0"
                           Height="24" Style="{StaticResource BeautifulComboBox}"/>
-                <Button Grid.Column="2" Content="+ Add" Command="{Binding CreateProjectCommand}"
+
+                <Button Grid.Column="4" Content="+ Add Project" Command="{Binding CreateProjectCommand}"
                         Style="{StaticResource GhostButton}" VerticalAlignment="Center" Margin="0,0,24,0"/>
 
-                <TextBlock Grid.Column="3" Text="Type" VerticalAlignment="Center" FontWeight="Medium"
-                           Margin="0,0,16,0" Foreground="#D1D5DB" FontSize="13"/>
-                <ComboBox Grid.Column="4" SelectedValue="{Binding TypeFilter}" SelectedValuePath="Content"
+                <TextBlock Grid.Column="5" Text="Type" VerticalAlignment="Center" FontWeight="Medium"
+                           Margin="0,0,12,0" Foreground="#D1D5DB" FontSize="13"/>
+                <ComboBox Grid.Column="6" SelectedValue="{Binding TypeFilter}" SelectedValuePath="Tag"
                           VerticalAlignment="Center" Margin="0,0,24,0" Height="24"
                           Style="{StaticResource BeautifulComboBox}">
-                    <ComboBoxItem Content="All" IsSelected="True"/>
-                    <ComboBoxItem Content="🚀 feature"/>
-                    <ComboBoxItem Content="🐛 bug"/>
-                    <ComboBoxItem Content="✨ enhancement"/>
-                    <ComboBoxItem Content="🧪 test"/>
+                    <ComboBoxItem Content="All" Tag="All" IsSelected="True"/>
+                    <ComboBoxItem Content="🚀 feature" Tag="feature"/>
+                    <ComboBoxItem Content="🐛 bug" Tag="bug"/>
+                    <ComboBoxItem Content="✨ enhancement" Tag="enhancement"/>
+                    <ComboBoxItem Content="🧪 test" Tag="test"/>
+                    <ComboBoxItem Content="🔧 refactor" Tag="refactor"/>
                 </ComboBox>
 
-                <TextBlock Grid.Column="5" Text="Status" VerticalAlignment="Center" FontWeight="Medium"
-                           Margin="0,0,16,0" Foreground="#D1D5DB" FontSize="13"/>
-                <ComboBox Grid.Column="6" SelectedValue="{Binding StatusFilter}" SelectedValuePath="Content"
+                <TextBlock Grid.Column="7" Text="Status" VerticalAlignment="Center" FontWeight="Medium"
+                           Margin="0,0,12,0" Foreground="#D1D5DB" FontSize="13"/>
+                <ComboBox Grid.Column="8" SelectedValue="{Binding StatusFilter}" SelectedValuePath="Tag"
                           VerticalAlignment="Center" Height="24"
                           Style="{StaticResource BeautifulComboBox}">
-                    <ComboBoxItem Content="All" IsSelected="True"/>
-                    <ComboBoxItem Content="📝 Todo"/>
-                    <ComboBoxItem Content="⏳ InProgress"/>
-                    <ComboBoxItem Content="✅ Done"/>
-                    <ComboBoxItem Content="❌ Cancelled"/>
+                    <ComboBoxItem Content="All" Tag="All" IsSelected="True"/>
+                    <ComboBoxItem Content="📝 Todo" Tag="Todo"/>
+                    <ComboBoxItem Content="⏳ InProgress" Tag="InProgress"/>
+                    <ComboBoxItem Content="✅ Done" Tag="Done"/>
+                    <ComboBoxItem Content="❌ Cancelled" Tag="Cancelled"/>
                 </ComboBox>
             </Grid>
         </Border>

@@ -34,6 +34,9 @@ public partial class TaskListViewModel : ObservableObject
     private string _typeFilter = "All";
 
     [ObservableProperty]
+    private string _searchText = "";
+
+    [ObservableProperty]
     private int _currentPage = 1;
 
     [ObservableProperty]
@@ -62,6 +65,12 @@ public partial class TaskListViewModel : ObservableObject
 
     partial void OnTypeFilterChanged(string value)
     {
+        ApplyFiltersAndPagination();
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        CurrentPage = 1;
         ApplyFiltersAndPagination();
     }
 
@@ -128,6 +137,24 @@ public partial class TaskListViewModel : ObservableObject
             filtered = filtered.Where(t => t.Type.Equals(TypeFilter, StringComparison.OrdinalIgnoreCase));
         }
 
+        // Apply search text filter
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            var searchLower = SearchText.ToLower();
+            filtered = filtered.Where(t =>
+                t.Title.ToLower().Contains(searchLower) ||
+                (t.Summary?.ToLower().Contains(searchLower) ?? false) ||
+                t.Number.ToString().Contains(searchLower) ||
+                t.Type.ToLower().Contains(searchLower) ||
+                t.Status.ToString().ToLower().Contains(searchLower) ||
+                (t.AcceptanceCriteria?.ToLower().Contains(searchLower) ?? false) ||
+                (t.TestPlan?.ToLower().Contains(searchLower) ?? false) ||
+                (t.ScopePaths?.ToLower().Contains(searchLower) ?? false) ||
+                (t.RequiredDocs?.ToLower().Contains(searchLower) ?? false) ||
+                (t.NonGoals?.ToLower().Contains(searchLower) ?? false) ||
+                (t.Notes?.ToLower().Contains(searchLower) ?? false));
+        }
+
         var filteredList = filtered.ToList();
         var totalCount = filteredList.Count;
 
@@ -191,4 +218,17 @@ public partial class TaskListViewModel : ObservableObject
             ApplyFiltersAndPagination();
         }
     }
+
+    [RelayCommand]
+    private void SelectTask(TaskSpec task)
+    {
+        if (task != null)
+        {
+            SelectedTask = task;
+            LoggingService.LogInfo($"Selected task #{task.Number} - {task.Title}", "TaskListViewModel");
+            TaskSelected?.Invoke(this, task);
+        }
+    }
+
+    public event EventHandler<TaskSpec>? TaskSelected;
 }
