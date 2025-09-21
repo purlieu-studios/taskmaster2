@@ -16,6 +16,7 @@ public partial class MainViewModel : ObservableObject
     private readonly DatabaseService _databaseService;
     private readonly ClaudeService _claudeService;
     private readonly SpecFileService _specFileService;
+    private readonly PanelService _panelService;
 
     [ObservableProperty]
     private ObservableCollection<Project> _projects = new();
@@ -99,6 +100,19 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _catalogExportPath = "catalog";
 
+    // New UI Properties
+    [ObservableProperty]
+    private string _typeFilter = "All";
+
+    [ObservableProperty]
+    private string _statusFilter = "All";
+
+    [ObservableProperty]
+    private bool _isTaskDetailPanelOpen = false;
+
+    [ObservableProperty]
+    private TaskDetailViewModel? _selectedTaskDetail;
+
     private ClaudeInferenceResponse? _lastInference;
 
     public MainViewModel()
@@ -107,6 +121,7 @@ public partial class MainViewModel : ObservableObject
         _databaseService.InitializeDatabase(); // Initialize database on startup
         _claudeService = new ClaudeService();
         _specFileService = new SpecFileService(_databaseService);
+        _panelService = new PanelService(_claudeService, RepoRoot);
 
         PropertyChanged += OnPropertyChanged;
         LoadProjectsAsync();
@@ -953,5 +968,101 @@ public partial class MainViewModel : ObservableObject
                 "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
+    }
+
+    // New Commands for the redesigned UI
+    [RelayCommand]
+    private async Task NewTaskAsync()
+    {
+        try
+        {
+            var dialog = new NewTaskDialog();
+            dialog.Projects.Clear();
+            foreach (var project in Projects)
+            {
+                dialog.Projects.Add(project);
+            }
+            dialog.SelectedProject = SelectedProject;
+
+            if (dialog.ShowDialog() == true && dialog.CreatedTask != null)
+            {
+                var newTask = dialog.CreatedTask;
+
+                // Get the next task number for this project
+                var taskNumber = await _databaseService.GetNextTaskNumberAsync(newTask.ProjectId);
+                newTask.Number = taskNumber;
+
+                // Save the task immediately
+                var savedTask = await _databaseService.SaveTaskSpecAsync(newTask);
+
+                LoggingService.LogInfo($"Created new task #{savedTask.Number} - {savedTask.Title}", "MainViewModel");
+
+                // Open the task in the detail panel
+                await OpenTaskDetailAsync(savedTask);
+
+                // Refresh the task list if the project matches current selection
+                if (SelectedProject?.Id == savedTask.ProjectId)
+                {
+                    // Notify task list to refresh
+                    OnPropertyChanged(nameof(LastSavedSpecPath));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to create new task", ex, "MainViewModel");
+            MessageBox.Show($"Failed to create new task: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportTemplateAsync()
+    {
+        try
+        {
+            MessageBox.Show("Import template functionality will be implemented later.", "Not Implemented",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to import template", ex, "MainViewModel");
+            MessageBox.Show($"Failed to import template: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    public async Task OpenTaskDetailAsync(TaskSpec task)
+    {
+        try
+        {
+            if (SelectedTaskDetail == null)
+            {
+                SelectedTaskDetail = new TaskDetailViewModel(_databaseService, _claudeService, _panelService, _specFileService);
+                SelectedTaskDetail.TaskSaved += OnTaskSaved;
+            }
+
+            SelectedTaskDetail.LoadTask(task);
+            IsTaskDetailPanelOpen = true;
+
+            LoggingService.LogInfo($"Opened task #{task.Number} in detail panel", "MainViewModel");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to open task detail for #{task.Number}", ex, "MainViewModel");
+        }
+    }
+
+    public void CloseTaskDetail()
+    {
+        IsTaskDetailPanelOpen = false;
+        LoggingService.LogInfo("Closed task detail panel", "MainViewModel");
+    }
+
+    private void OnTaskSaved(object? sender, TaskSpec savedTask)
+    {
+        // Refresh the task list when a task is saved
+        OnPropertyChanged(nameof(LastSavedSpecPath));
+        LoggingService.LogInfo($"Task #{savedTask.Number} saved, refreshing task list", "MainViewModel");
     }
 }
