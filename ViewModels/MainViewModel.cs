@@ -1014,7 +1014,79 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            var newTask = NewTaskViewModel.CreateTaskSpec();
+            TaskSpec newTask;
+
+            // Check if AI enhancement is enabled
+            if (NewTaskViewModel.UseAIEnhancement)
+            {
+                // Set loading state and get cancellation token
+                NewTaskViewModel.IsGenerating = true;
+                var cancellationToken = NewTaskViewModel.GetCancellationToken();
+
+                try
+                {
+                    LoggingService.LogInfo("Starting AI-enhanced task creation", "MainViewModel");
+
+                    // Create basic task spec for AI enhancement
+                    var basicTask = NewTaskViewModel.CreateTaskSpec();
+
+                    // Use ClaudeService to enhance the task with AI-generated content
+                    var enhancedTask = await _claudeService.EnhanceTaskSpecAsync(
+                        basicTask.Title,
+                        basicTask.Summary,
+                        basicTask.Type,
+                        SelectedProject?.Name ?? "Unknown Project",
+                        cancellationToken
+                    );
+
+                    // Check if operation was cancelled
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        LoggingService.LogInfo("AI enhancement was cancelled", "MainViewModel");
+                        return;
+                    }
+
+                    // Merge enhanced content with basic task
+                    newTask = basicTask;
+                    newTask.AcceptanceCriteria = enhancedTask.AcceptanceCriteria ?? "[]";
+                    newTask.TestPlan = enhancedTask.TestPlan ?? "[]";
+                    newTask.ScopePaths = enhancedTask.ScopePaths ?? "[]";
+                    newTask.RequiredDocs = enhancedTask.RequiredDocs ?? "[]";
+                    newTask.NonGoals = enhancedTask.NonGoals ?? "[]";
+                    newTask.Notes = enhancedTask.Notes ?? "[]";
+
+                    LoggingService.LogInfo("AI enhancement completed successfully", "MainViewModel");
+                }
+                catch (OperationCanceledException)
+                {
+                    LoggingService.LogInfo("AI enhancement was cancelled by user", "MainViewModel");
+                    return;
+                }
+                catch (Exception aiEx)
+                {
+                    LoggingService.LogWarning($"AI enhancement failed, proceeding with basic task: {aiEx.Message}", "MainViewModel");
+
+                    // Show user-friendly notification about AI failure
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"AI enhancement is unavailable: {aiEx.Message}\n\nCreating basic task instead.",
+                            "AI Enhancement Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
+
+                    // Fall back to basic task if AI enhancement fails
+                    newTask = NewTaskViewModel.CreateTaskSpec();
+                }
+                finally
+                {
+                    // Clear loading state
+                    NewTaskViewModel.IsGenerating = false;
+                }
+            }
+            else
+            {
+                // Create basic task without AI enhancement
+                newTask = NewTaskViewModel.CreateTaskSpec();
+            }
 
             // Get the next task number for this project
             var taskNumber = await _databaseService.GetNextTaskNumberAsync(newTask.ProjectId);
@@ -1040,6 +1112,10 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            // Ensure loading state is cleared on any error
+            if (NewTaskViewModel != null)
+                NewTaskViewModel.IsGenerating = false;
+
             LoggingService.LogError("Failed to create new task", ex, "MainViewModel");
             MessageBox.Show($"Failed to create new task: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);

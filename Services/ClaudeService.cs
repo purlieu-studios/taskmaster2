@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 using TaskMaster.Models;
 
 namespace TaskMaster.Services;
@@ -112,7 +113,7 @@ public class ClaudeService
     }
 
 
-    public async Task<string?> CallClaudeDirectAsync(string prompt)
+    public async Task<string?> CallClaudeDirectAsync(string prompt, System.Threading.CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
 
@@ -388,6 +389,152 @@ public class ClaudeService
             LoggingService.LogError($"Exception running guarded Claude command: {command}", ex, "ClaudeService");
             throw;
         }
+    }
+
+    public async Task<TaskSpec> EnhanceTaskSpecAsync(string title, string summary, string type, string projectName, CancellationToken cancellationToken = default)
+    {
+        LoggingService.LogInfo($"Starting task enhancement for: {title}", "ClaudeService");
+
+        try
+        {
+            // First check if Claude CLI is available
+            LoggingService.LogInfo("Checking Claude CLI availability for enhancement", "ClaudeService");
+            if (!await IsClaudeAvailableAsync())
+            {
+                var errorMsg = "Claude CLI is not available. Please ensure Claude CLI is installed and authenticated.";
+                LoggingService.LogError(errorMsg, null, "ClaudeService");
+                throw new InvalidOperationException(errorMsg);
+            }
+
+            LoggingService.LogInfo("Claude CLI is available, building enhancement prompt", "ClaudeService");
+
+            // Build enhancement prompt
+            var prompt = BuildEnhancementPrompt(title, summary, type, projectName);
+            LoggingService.LogInfo($"Enhancement prompt built ({prompt.Length} characters)", "ClaudeService");
+
+            // Call Claude
+            LoggingService.LogInfo("Calling Claude CLI for task enhancement", "ClaudeService");
+            var response = await CallClaudeDirectAsync(prompt, cancellationToken);
+
+            if (response != null)
+            {
+                LoggingService.LogInfo($"Received Claude response ({response.Length} characters), parsing...", "ClaudeService");
+                var parsed = ParseEnhancementResponse(response);
+                if (parsed != null)
+                {
+                    LoggingService.LogInfo("Task enhancement successful", "ClaudeService");
+                    return parsed;
+                }
+                else
+                {
+                    var errorMsg = "Failed to parse Claude enhancement response as valid JSON";
+                    LoggingService.LogWarning($"{errorMsg}. Raw response: {response.Substring(0, Math.Min(200, response.Length))}...", "ClaudeService");
+                    throw new InvalidOperationException(errorMsg);
+                }
+            }
+
+            // If we get here, something went wrong
+            var noResponseMsg = "Claude CLI returned no response";
+            LoggingService.LogError(noResponseMsg, null, "ClaudeService");
+            throw new InvalidOperationException(noResponseMsg);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Error in EnhanceTaskSpecAsync for task '{title}'", ex, "ClaudeService");
+            throw; // Re-throw to let the UI handle it with user feedback
+        }
+    }
+
+    private string BuildEnhancementPrompt(string title, string summary, string type, string projectName)
+    {
+        var promptBuilder = new StringBuilder();
+
+        promptBuilder.AppendLine("You are an expert technical project manager creating comprehensive task specifications for software development.");
+        promptBuilder.AppendLine("Transform the minimal input below into detailed, actionable specifications that developers can implement immediately.");
+        promptBuilder.AppendLine();
+
+        promptBuilder.AppendLine($"**Project:** {projectName}");
+        promptBuilder.AppendLine($"**Title:** {title}");
+        promptBuilder.AppendLine($"**Summary:** {summary}");
+        promptBuilder.AppendLine($"**Type:** {type}");
+        promptBuilder.AppendLine();
+
+        promptBuilder.AppendLine("Please enhance this task with comprehensive details. Return only valid JSON in this exact format:");
+        promptBuilder.AppendLine("```json");
+        promptBuilder.AppendLine("{");
+        promptBuilder.AppendLine("  \"acceptanceCriteria\": [\"Specific, testable requirement\", \"Another measurable outcome\"],");
+        promptBuilder.AppendLine("  \"testPlan\": [\"Manual test step\", \"Automated test requirement\"],");
+        promptBuilder.AppendLine("  \"scopePaths\": [\"specific/file/paths.cs\", \"Views/ComponentName.xaml\"],");
+        promptBuilder.AppendLine("  \"requiredDocs\": [\"Documentation that should be referenced or updated\"],");
+        promptBuilder.AppendLine("  \"nonGoals\": [\"What this task explicitly does NOT include\"],");
+        promptBuilder.AppendLine("  \"notes\": [\"Implementation tips\", \"Technical considerations\"]");
+        promptBuilder.AppendLine("}");
+        promptBuilder.AppendLine("```");
+
+        promptBuilder.AppendLine();
+        promptBuilder.AppendLine("**Quality Standards:**");
+        promptBuilder.AppendLine("- **acceptanceCriteria**: Each criterion must be specific, measurable, and testable");
+        promptBuilder.AppendLine("- **testPlan**: Include both manual verification steps and automated test requirements");
+        promptBuilder.AppendLine("- **scopePaths**: Use realistic file/folder paths relevant to the task");
+        promptBuilder.AppendLine("- **requiredDocs**: List documentation that should be referenced or updated");
+        promptBuilder.AppendLine("- **nonGoals**: Clarify what is explicitly out of scope");
+        promptBuilder.AppendLine("- **notes**: Provide useful implementation tips or technical considerations");
+
+        return promptBuilder.ToString();
+    }
+
+    private TaskSpec? ParseEnhancementResponse(string response)
+    {
+        try
+        {
+            // Find JSON in the response
+            var jsonStart = response.IndexOf('{');
+            var jsonEnd = response.LastIndexOf('}');
+
+            if (jsonStart >= 0 && jsonEnd > jsonStart)
+            {
+                var json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                var enhancementData = JsonConvert.DeserializeObject<dynamic>(json);
+
+                if (enhancementData != null)
+                {
+                    var taskSpec = new TaskSpec();
+
+                    // Convert arrays to JSON strings
+                    taskSpec.AcceptanceCriteria = JsonConvert.SerializeObject(enhancementData.acceptanceCriteria ?? new string[0]);
+                    taskSpec.TestPlan = JsonConvert.SerializeObject(enhancementData.testPlan ?? new string[0]);
+                    taskSpec.ScopePaths = JsonConvert.SerializeObject(enhancementData.scopePaths ?? new string[0]);
+                    taskSpec.RequiredDocs = JsonConvert.SerializeObject(enhancementData.requiredDocs ?? new string[0]);
+                    taskSpec.NonGoals = JsonConvert.SerializeObject(enhancementData.nonGoals ?? new string[0]);
+                    taskSpec.Notes = JsonConvert.SerializeObject(enhancementData.notes ?? new string[0]);
+
+                    return taskSpec;
+                }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Error parsing Claude enhancement response", ex, "ClaudeService");
+            return null;
+        }
+    }
+
+    private TaskSpec CreateBasicTaskSpec(string title, string summary, string type)
+    {
+        return new TaskSpec
+        {
+            Title = title,
+            Summary = summary,
+            Type = type,
+            AcceptanceCriteria = "[\"Task completed successfully\"]",
+            TestPlan = "[\"Manual verification required\"]",
+            ScopePaths = "[]",
+            RequiredDocs = "[]",
+            NonGoals = "[]",
+            Notes = "[]"
+        };
     }
 
     public async Task<PanelResult> RunPanelServiceAsync(string specPath, string repoRoot, int rounds = 2, string scope = "src/")

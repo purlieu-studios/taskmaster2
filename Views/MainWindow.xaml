@@ -280,11 +280,13 @@
     </Window.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+        <!-- Main Content Grid -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
         <!-- Beautiful Gradient Header -->
         <Border Grid.Row="0" Background="{StaticResource DarkSurfaceGradient}"
@@ -403,6 +405,7 @@
                                    Width="450" Margin="16,20,32,32"
                                    Visibility="{Binding IsTaskDetailPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
                                    DataContext="{Binding SelectedTaskDetail}"/>
+        </Grid>
         </Grid>
 
         <!-- New Task Popup Overlay -->

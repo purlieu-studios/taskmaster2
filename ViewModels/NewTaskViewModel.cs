@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
+using System.Threading;
 using TaskMaster.Models;
+using TaskMaster.Services;
 
 namespace TaskMaster.ViewModels;
 
@@ -16,9 +18,20 @@ public partial class NewTaskViewModel : ObservableObject
     private string _taskTitle = string.Empty;
 
     [ObservableProperty]
+    private string _taskSummary = string.Empty;
+
+    [ObservableProperty]
     private string _taskType = "feature";
 
-    public bool CanCreateTask => !string.IsNullOrWhiteSpace(TaskTitle) && SelectedProject != null;
+    [ObservableProperty]
+    private bool _isGenerating = false;
+
+    [ObservableProperty]
+    private bool _useAIEnhancement = true;
+
+    private System.Threading.CancellationTokenSource? _cancellationTokenSource;
+
+    public bool CanCreateTask => !string.IsNullOrWhiteSpace(TaskTitle) && SelectedProject != null && !IsGenerating;
 
     partial void OnTaskTitleChanged(string value)
     {
@@ -26,6 +39,11 @@ public partial class NewTaskViewModel : ObservableObject
     }
 
     partial void OnSelectedProjectChanged(Project? value)
+    {
+        OnPropertyChanged(nameof(CanCreateTask));
+    }
+
+    partial void OnIsGeneratingChanged(bool value)
     {
         OnPropertyChanged(nameof(CanCreateTask));
     }
@@ -39,7 +57,7 @@ public partial class NewTaskViewModel : ObservableObject
         {
             Title = TaskTitle,
             Type = TaskType,
-            Summary = "Task created via popup dialog", // Default summary
+            Summary = !string.IsNullOrWhiteSpace(TaskSummary) ? TaskSummary : TaskTitle,
             ProjectId = SelectedProject.Id,
             Created = DateTime.UtcNow,
             Status = Models.TaskStatus.Todo,
@@ -54,8 +72,30 @@ public partial class NewTaskViewModel : ObservableObject
 
     public void Reset()
     {
+        // Cancel any ongoing AI generation
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+
         TaskTitle = string.Empty;
+        TaskSummary = string.Empty;
         TaskType = "feature";
         SelectedProject = Projects.FirstOrDefault();
+        IsGenerating = false;
+    }
+
+    public void CancelAIGeneration()
+    {
+        _cancellationTokenSource?.Cancel();
+        IsGenerating = false;
+        LoggingService.LogInfo("AI generation cancelled by user", "NewTaskViewModel");
+    }
+
+    public System.Threading.CancellationToken GetCancellationToken()
+    {
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = new System.Threading.CancellationTokenSource();
+        return _cancellationTokenSource.Token;
     }
 }

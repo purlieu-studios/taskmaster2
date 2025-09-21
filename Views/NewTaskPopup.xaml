@@ -3,50 +3,146 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <UserControl.Resources>
+        <!-- Converters -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
         <!-- Gradient Brushes -->
         <LinearGradientBrush x:Key="PurplePinkGradient" StartPoint="0,0" EndPoint="1,1">
             <GradientStop Color="#7C3AED" Offset="0"/>
             <GradientStop Color="#EC4899" Offset="1"/>
         </LinearGradientBrush>
 
-        <!-- Compact Input Style -->
-        <Style x:Key="CompactTextBox" TargetType="TextBox">
+        <!-- Beautiful ComboBox Style -->
+        <Style x:Key="BeautifulComboBox" TargetType="ComboBox">
             <Setter Property="Background" Value="#1F2937"/>
             <Setter Property="BorderBrush" Value="#374151"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Padding" Value="8,2"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="#7C3AED"/>
-                </Trigger>
-                <Trigger Property="IsFocused" Value="True">
-                    <Setter Property="BorderBrush" Value="#EC4899"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Foreground" Value="#F9FAFB"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton" Grid.Column="2"
+                                        Focusable="false" IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                        ClickMode="Press" Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Path x:Name="Arrow" Grid.Column="1" Fill="#9CA3AF" HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" Data="M 0 0 L 3 3 L 6 0 Z"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                            Content="{TemplateBinding SelectionBoxItem}"
+                                            ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                            ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                            Margin="{TemplateBinding Padding}" VerticalAlignment="Center"
+                                            HorizontalAlignment="Left"/>
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}" MaxHeight="200">
+                                    <Border x:Name="DropDownBorder" Background="#1F2937" BorderThickness="1"
+                                            BorderBrush="#374151" CornerRadius="4" Margin="0,2,0,0">
+                                        <Border.Effect>
+                                            <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.3" BlurRadius="12"/>
+                                        </Border.Effect>
+                                        <ScrollViewer SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="#EC4899"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="#F9FAFB"/>
+                        <Setter Property="Padding" Value="8,4"/>
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" TargetName="border" Value="#374151"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" TargetName="border" Value="#7C3AED"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <!-- Compact ComboBox Style -->
-        <Style x:Key="CompactComboBox" TargetType="ComboBox">
+        <!-- Beautiful TextBox Style -->
+        <Style x:Key="BeautifulTextBox" TargetType="TextBox">
             <Setter Property="Background" Value="#1F2937"/>
             <Setter Property="BorderBrush" Value="#374151"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#F9FAFB"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="#7C3AED"/>
-                </Trigger>
-                <Trigger Property="IsFocused" Value="True">
-                    <Setter Property="BorderBrush" Value="#EC4899"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false"
+                                        HorizontalScrollBarVisibility="Hidden"
+                                        VerticalScrollBarVisibility="Hidden"
+                                        Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#EC4899"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Compact Primary Button -->
@@ -81,22 +177,40 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="MinWidth" Value="60"/>
             <Setter Property="Height" Value="32"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#374151"/>
-                    <Setter Property="Foreground" Value="#FFFFFF"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#4B5563"/>
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter x:Name="contentPresenter"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" TargetName="border" Value="#374151"/>
+                                <Setter Property="TextElement.Foreground" TargetName="contentPresenter" Value="#FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" TargetName="border" Value="#4B5563"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
     <!-- Popup Content Card -->
     <Border Background="#1A1F2E" CornerRadius="16"
             BorderBrush="#7C3AED" BorderThickness="2"
-            Width="400" Height="320">
+            Width="400" Height="540"
+            MouseDown="NewTaskPopup_MouseDown">
         <Border.Effect>
             <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.6" BlurRadius="32"/>
         </Border.Effect>
@@ -117,7 +231,8 @@
                           ItemsSource="{Binding Projects}"
                           SelectedItem="{Binding SelectedProject}"
                           DisplayMemberPath="Name"
-                          Style="{StaticResource CompactComboBox}"/>
+                          Style="{StaticResource BeautifulComboBox}"
+                          Height="32"/>
             </StackPanel>
 
             <!-- Task Title -->
@@ -126,31 +241,139 @@
                            Foreground="#E5E7EB" FontSize="12"/>
                 <TextBox Name="TitleTextBox"
                          Text="{Binding TaskTitle, UpdateSourceTrigger=PropertyChanged}"
-                         Style="{StaticResource CompactTextBox}"/>
+                         Style="{StaticResource BeautifulTextBox}"
+                         Height="32"/>
+            </StackPanel>
+
+            <!-- Task Summary -->
+            <StackPanel Margin="0,0,0,14">
+                <TextBlock Text="Summary (optional)" FontWeight="SemiBold" Margin="0,0,0,4"
+                           Foreground="#E5E7EB" FontSize="12"/>
+                <TextBox Name="SummaryTextBox"
+                         Text="{Binding TaskSummary, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource BeautifulTextBox}"
+                         Height="64" AcceptsReturn="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"/>
             </StackPanel>
 
             <!-- Task Type -->
-            <StackPanel Margin="0,0,0,20">
+            <StackPanel Margin="0,0,0,14">
                 <TextBlock Text="Task Type" FontWeight="SemiBold" Margin="0,0,0,4"
                            Foreground="#E5E7EB" FontSize="12"/>
                 <ComboBox Name="TypeComboBox"
                           SelectedValue="{Binding TaskType}"
-                          Style="{StaticResource CompactComboBox}">
-                    <ComboBoxItem Content="🚀 feature" IsSelected="True"/>
-                    <ComboBoxItem Content="🐛 bug"/>
-                    <ComboBoxItem Content="✨ enhancement"/>
-                    <ComboBoxItem Content="🧪 test"/>
-                    <ComboBoxItem Content="🔧 refactor"/>
+                          SelectedValuePath="Tag"
+                          Style="{StaticResource BeautifulComboBox}"
+                          Height="32">
+                    <ComboBoxItem Content="🚀 feature" Tag="feature" IsSelected="True"/>
+                    <ComboBoxItem Content="🐛 bug" Tag="bug"/>
+                    <ComboBoxItem Content="✨ enhancement" Tag="enhancement"/>
+                    <ComboBoxItem Content="🧪 test" Tag="test"/>
+                    <ComboBoxItem Content="🔧 refactor" Tag="refactor"/>
                 </ComboBox>
+            </StackPanel>
+
+            <!-- AI Enhancement Toggle -->
+            <StackPanel Margin="0,0,0,20">
+                <CheckBox Name="AIEnhancementCheckBox"
+                          IsChecked="{Binding UseAIEnhancement}"
+                          Content="⚡ AI-Enhanced Content Generation"
+                          Foreground="#E5E7EB" FontSize="12" FontWeight="Medium"
+                          VerticalAlignment="Center">
+                    <CheckBox.Style>
+                        <Style TargetType="CheckBox">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="CheckBox">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border x:Name="checkBoxBorder"
+                                                    Width="16" Height="16"
+                                                    Background="#1F2937"
+                                                    BorderBrush="#7C3AED"
+                                                    BorderThickness="1"
+                                                    CornerRadius="3"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,0,8,0">
+                                                <Path x:Name="checkMark"
+                                                      Data="M 3 7 L 6 10 L 12 3"
+                                                      Stroke="#7C3AED"
+                                                      StrokeThickness="2"
+                                                      Visibility="Collapsed"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ContentPresenter Content="{TemplateBinding Content}"
+                                                            VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                                                <Setter TargetName="checkBoxBorder" Property="Background" Value="#7C3AED"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="checkBoxBorder" Property="BorderBrush" Value="#EC4899"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </CheckBox.Style>
+                </CheckBox>
+                <TextBlock Text="Automatically generate detailed acceptance criteria, test plans, and implementation notes"
+                           FontSize="10" Foreground="#9CA3AF" Margin="24,4,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- Loading Indicator -->
+            <StackPanel Margin="0,0,0,14" HorizontalAlignment="Center"
+                        Visibility="{Binding IsGenerating, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                    <TextBlock Text="⚡" FontSize="14" Foreground="#7C3AED" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBlock Text="Enhancing with AI..." FontSize="12" Foreground="#E5E7EB" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ProgressBar IsIndeterminate="True" Width="200" Height="4"
+                             Background="#374151" Foreground="#7C3AED"/>
+                <TextBlock Text="Generating detailed specifications and acceptance criteria"
+                           FontSize="10" Foreground="#9CA3AF" HorizontalAlignment="Center" Margin="0,6,0,0"/>
             </StackPanel>
 
             <!-- Action Buttons -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="Cancel" Name="CancelButton" Click="CancelButton_Click"
-                        Style="{StaticResource CompactGhostButton}" Margin="0,0,12,0"/>
-                <Button Content="✨ Create Task" Name="CreateButton" Click="CreateButton_Click"
+                <Button Name="CancelButton" Click="CancelButton_Click"
+                        Style="{StaticResource CompactGhostButton}" Margin="0,0,12,0">
+                    <Button.Content>
+                        <TextBlock>
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="Cancel"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsGenerating}" Value="True">
+                                            <Setter Property="Text" Value="Cancel AI"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Button.Content>
+                </Button>
+                <Button Name="CreateButton" Click="CreateButton_Click"
                         Style="{StaticResource CompactPrimaryButton}"
-                        IsEnabled="{Binding CanCreateTask}"/>
+                        IsEnabled="{Binding CanCreateTask}">
+                    <Button.Content>
+                        <TextBlock>
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="✨ Create Task"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsGenerating}" Value="True">
+                                            <Setter Property="Text" Value="⚡ Generating..."/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Button.Content>
+                </Button>
             </StackPanel>
         </StackPanel>
     </Border>
