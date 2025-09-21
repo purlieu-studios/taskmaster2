@@ -212,5 +212,6 @@
                 </StackPanel>
             </StackPanel>
         </Border>
+        </ScrollViewer>
     </Grid>
 </Window>
