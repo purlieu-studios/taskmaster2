@@ -88,6 +88,12 @@ public partial class MainViewModel : ObservableObject
     private int _panelRounds = 2;
 
     [ObservableProperty]
+    private bool _isNewTaskPopupVisible = false;
+
+    [ObservableProperty]
+    private NewTaskViewModel? _newTaskViewModel;
+
+    [ObservableProperty]
     private string _panelScope = "src/";
 
     // Catalog Export Settings
@@ -975,40 +981,61 @@ public partial class MainViewModel : ObservableObject
 
     // New Commands for the redesigned UI
     [RelayCommand]
-    private async Task NewTaskAsync()
+    private void ShowNewTaskPopup()
     {
+        if (NewTaskViewModel == null)
+        {
+            NewTaskViewModel = new NewTaskViewModel();
+        }
+
+        // Initialize popup with current projects
+        NewTaskViewModel.Projects.Clear();
+        foreach (var project in Projects)
+        {
+            NewTaskViewModel.Projects.Add(project);
+        }
+        NewTaskViewModel.SelectedProject = SelectedProject;
+        NewTaskViewModel.Reset();
+
+        IsNewTaskPopupVisible = true;
+    }
+
+    [RelayCommand]
+    private void CloseNewTaskPopup()
+    {
+        IsNewTaskPopupVisible = false;
+    }
+
+    [RelayCommand]
+    private async Task CreateTaskFromPopupAsync()
+    {
+        if (NewTaskViewModel == null || !NewTaskViewModel.CanCreateTask)
+            return;
+
         try
         {
-            var dialog = new NewTaskDialog();
-            dialog.Projects.Clear();
-            foreach (var project in Projects)
+            var newTask = NewTaskViewModel.CreateTaskSpec();
+
+            // Get the next task number for this project
+            var taskNumber = await _databaseService.GetNextTaskNumberAsync(newTask.ProjectId);
+            newTask.Number = taskNumber;
+
+            // Save the task immediately
+            var savedTask = await _databaseService.SaveTaskSpecAsync(newTask);
+
+            LoggingService.LogInfo($"Created new task #{savedTask.Number} - {savedTask.Title}", "MainViewModel");
+
+            // Close the popup
+            IsNewTaskPopupVisible = false;
+
+            // Open the task in the detail panel
+            await OpenTaskDetailAsync(savedTask);
+
+            // Refresh the task list if the project matches current selection
+            if (SelectedProject?.Id == savedTask.ProjectId)
             {
-                dialog.Projects.Add(project);
-            }
-            dialog.SelectedProject = SelectedProject;
-
-            if (dialog.ShowDialog() == true && dialog.CreatedTask != null)
-            {
-                var newTask = dialog.CreatedTask;
-
-                // Get the next task number for this project
-                var taskNumber = await _databaseService.GetNextTaskNumberAsync(newTask.ProjectId);
-                newTask.Number = taskNumber;
-
-                // Save the task immediately
-                var savedTask = await _databaseService.SaveTaskSpecAsync(newTask);
-
-                LoggingService.LogInfo($"Created new task #{savedTask.Number} - {savedTask.Title}", "MainViewModel");
-
-                // Open the task in the detail panel
-                await OpenTaskDetailAsync(savedTask);
-
-                // Refresh the task list if the project matches current selection
-                if (SelectedProject?.Id == savedTask.ProjectId)
-                {
-                    // Notify task list to refresh
-                    OnPropertyChanged(nameof(LastSavedSpecPath));
-                }
+                // Notify task list to refresh
+                OnPropertyChanged(nameof(LastSavedSpecPath));
             }
         }
         catch (Exception ex)

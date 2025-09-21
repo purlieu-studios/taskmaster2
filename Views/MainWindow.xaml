@@ -313,7 +313,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Content="✨ New Task" Command="{Binding NewTaskCommand}"
+                    <Button Content="✨ New Task" Command="{Binding ShowNewTaskPopupCommand}"
                             Style="{StaticResource PrimaryButton}" Margin="0,0,12,0"/>
                     <Button Content="Export" Command="{Binding ExportCatalogCommand}"
                             Style="{StaticResource SleekButton}" Margin="0,0,8,0"/>
@@ -403,6 +403,19 @@
                                    Width="450" Margin="16,20,32,32"
                                    Visibility="{Binding IsTaskDetailPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
                                    DataContext="{Binding SelectedTaskDetail}"/>
+        </Grid>
+
+        <!-- New Task Popup Overlay -->
+        <Grid x:Name="PopupOverlay" Background="#80000000"
+              Visibility="{Binding IsNewTaskPopupVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Grid.InputBindings>
+                <MouseBinding MouseAction="LeftClick" Command="{Binding CloseNewTaskPopupCommand}"/>
+            </Grid.InputBindings>
+
+            <views:NewTaskPopup x:Name="NewTaskPopup"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                DataContext="{Binding NewTaskViewModel}"/>
         </Grid>
     </Grid>
 </Window>

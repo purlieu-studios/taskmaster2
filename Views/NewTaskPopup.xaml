@@ -1,0 +1,157 @@
+<UserControl x:Class="TaskMaster.Views.NewTaskPopup"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Resources>
+        <!-- Gradient Brushes -->
+        <LinearGradientBrush x:Key="PurplePinkGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#7C3AED" Offset="0"/>
+            <GradientStop Color="#EC4899" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Compact Input Style -->
+        <Style x:Key="CompactTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#7C3AED"/>
+                </Trigger>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#EC4899"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Compact ComboBox Style -->
+        <Style x:Key="CompactComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#7C3AED"/>
+                </Trigger>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#EC4899"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Compact Primary Button -->
+        <Style x:Key="CompactPrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PurplePinkGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Height" Value="32"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.9"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Opacity" Value="0.8"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Compact Ghost Button -->
+        <Style x:Key="CompactGhostButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinWidth" Value="60"/>
+            <Setter Property="Height" Value="32"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#374151"/>
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#4B5563"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Popup Content Card -->
+    <Border Background="#141925" CornerRadius="12"
+            BorderBrush="#374151" BorderThickness="1"
+            MaxWidth="420" MinWidth="380">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.4" BlurRadius="24"/>
+        </Border.Effect>
+
+        <StackPanel Margin="24,20">
+            <!-- Compact Header -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                <TextBlock Text="✨" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Text="Create New Task" FontSize="16" FontWeight="Bold"
+                           Foreground="{StaticResource PurplePinkGradient}" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Project Selection -->
+            <StackPanel Margin="0,0,0,12">
+                <TextBlock Text="Project" FontWeight="SemiBold" Margin="0,0,0,6"
+                           Foreground="#FFFFFF" FontSize="11"/>
+                <ComboBox Name="ProjectComboBox"
+                          ItemsSource="{Binding Projects}"
+                          SelectedItem="{Binding SelectedProject}"
+                          DisplayMemberPath="Name"
+                          Style="{StaticResource CompactComboBox}"/>
+            </StackPanel>
+
+            <!-- Task Title -->
+            <StackPanel Margin="0,0,0,12">
+                <TextBlock Text="Task Title" FontWeight="SemiBold" Margin="0,0,0,6"
+                           Foreground="#FFFFFF" FontSize="11"/>
+                <TextBox Name="TitleTextBox"
+                         Text="{Binding TaskTitle, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource CompactTextBox}"/>
+            </StackPanel>
+
+            <!-- Task Type -->
+            <StackPanel Margin="0,0,0,18">
+                <TextBlock Text="Task Type" FontWeight="SemiBold" Margin="0,0,0,6"
+                           Foreground="#FFFFFF" FontSize="11"/>
+                <ComboBox Name="TypeComboBox"
+                          SelectedValue="{Binding TaskType}"
+                          Style="{StaticResource CompactComboBox}">
+                    <ComboBoxItem Content="🚀 feature" IsSelected="True"/>
+                    <ComboBoxItem Content="🐛 bug"/>
+                    <ComboBoxItem Content="✨ enhancement"/>
+                    <ComboBoxItem Content="🧪 test"/>
+                    <ComboBoxItem Content="🔧 refactor"/>
+                </ComboBox>
+            </StackPanel>
+
+            <!-- Action Buttons -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" Name="CancelButton" Click="CancelButton_Click"
+                        Style="{StaticResource CompactGhostButton}" Margin="0,0,8,0"/>
+                <Button Content="✨ Create Task" Name="CreateButton" Click="CreateButton_Click"
+                        Style="{StaticResource CompactPrimaryButton}"
+                        IsEnabled="{Binding CanCreateTask}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
