@@ -19,6 +19,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SpecFileService _specFileService;
     private readonly PanelService _panelService;
     private readonly TaskDecompositionService _taskDecompositionService;
+    private readonly ProjectContextService _projectContextService;
 
     [ObservableProperty]
     private ObservableCollection<Project> _projects = new();
@@ -134,6 +135,16 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private TaskDetailViewModel? _selectedTaskDetail;
 
+    // Project Settings Panel Properties
+    [ObservableProperty]
+    private bool _isProjectSettingsPanelOpen = false;
+
+    [ObservableProperty]
+    private int _filesAnalyzedCount = 0;
+
+    [ObservableProperty]
+    private DateTime? _lastAnalysisDate;
+
     private ClaudeInferenceResponse? _lastInference;
 
     public MainViewModel()
@@ -144,6 +155,7 @@ public partial class MainViewModel : ObservableObject
         _specFileService = new SpecFileService(_databaseService);
         _panelService = new PanelService(_claudeService, RepoRoot);
         _taskDecompositionService = new TaskDecompositionService(_claudeService, _databaseService);
+        _projectContextService = new ProjectContextService(_databaseService);
 
         PropertyChanged += OnPropertyChanged;
         LoadProjectsAsync();
@@ -199,6 +211,13 @@ public partial class MainViewModel : ObservableObject
             {
                 Projects.Add(project);
             }
+
+            // Auto-select the first project if any exist and none is currently selected
+            if (Projects.Any() && SelectedProject == null)
+            {
+                SelectedProject = Projects.First();
+                LoggingService.LogInfo($"Auto-selected first project: {SelectedProject.Name}", "MainViewModel");
+            }
         }
         catch (Exception ex)
         {
@@ -215,7 +234,7 @@ public partial class MainViewModel : ObservableObject
         {
             try
             {
-                var project = await _databaseService.CreateProjectAsync(dialog.ProjectName, dialog.ClaudeMdPath);
+                var project = await _databaseService.CreateProjectAsync(dialog.ProjectName, dialog.ProjectDirectory);
                 Projects.Add(project);
                 SelectedProject = project;
             }
@@ -1306,6 +1325,158 @@ public partial class MainViewModel : ObservableObject
     {
         ShowDecompositionSuggestion = false;
         DecompositionSuggestion = null;
+    }
+
+    // Project Settings Panel Commands
+
+    [RelayCommand]
+    private void OpenProjectSettings()
+    {
+        if (SelectedProject == null)
+        {
+            MessageBox.Show("Please select a project first to access project settings.",
+                "No Project Selected", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Update analysis statistics from selected project
+        FilesAnalyzedCount = SelectedProject.FilesAnalyzedCount;
+        LastAnalysisDate = SelectedProject.LastAnalysisDate;
+
+        IsProjectSettingsPanelOpen = true;
+        LoggingService.LogInfo($"Opened project settings for {SelectedProject.Name}", "MainViewModel");
+    }
+
+    [RelayCommand]
+    private void CloseProjectSettings()
+    {
+        IsProjectSettingsPanelOpen = false;
+        LoggingService.LogInfo("Closed project settings panel", "MainViewModel");
+    }
+
+    [RelayCommand]
+    private void BrowseProjectDirectory()
+    {
+        if (SelectedProject == null) return;
+
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "Select project directory for analysis",
+            UseDescriptionForTitle = true,
+            ShowNewFolderButton = false,
+            SelectedPath = SelectedProject.ProjectDirectory ?? ""
+        };
+
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        {
+            SelectedProject.ProjectDirectory = dialog.SelectedPath;
+            LoggingService.LogInfo($"Updated project directory to: {dialog.SelectedPath}", "MainViewModel");
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshProjectAnalysisAsync()
+    {
+        if (SelectedProject?.ProjectDirectory == null) return;
+
+        try
+        {
+            LoggingService.LogInfo($"Starting project analysis refresh for {SelectedProject.Name}", "MainViewModel");
+
+            // Clear existing context for this project
+            await _databaseService.ClearProjectContextAsync(SelectedProject.Id);
+
+            // Perform analysis
+            var progress = new Progress<ProjectAnalysisProgress>(p =>
+            {
+                // Could show progress in UI if needed
+                LoggingService.LogInfo($"Analysis progress: {p.Phase} - {p.Progress}%", "MainViewModel");
+            });
+
+            var result = await _projectContextService.AnalyzeProjectDirectoryAsync(
+                SelectedProject.Id,
+                SelectedProject.ProjectDirectory,
+                progress);
+
+            // Update project statistics
+            SelectedProject.FilesAnalyzedCount = result.FilesAnalyzed;
+            SelectedProject.LastAnalysisDate = DateTime.UtcNow;
+            SelectedProject.LastDirectoryAnalysis = DateTime.UtcNow;
+
+            // Update UI properties
+            FilesAnalyzedCount = result.FilesAnalyzed;
+            LastAnalysisDate = SelectedProject.LastAnalysisDate;
+
+            // Save updated project to database
+            await _databaseService.UpdateProjectAsync(SelectedProject);
+
+            LoggingService.LogInfo($"Project analysis completed. Processed {result.FilesAnalyzed} files", "MainViewModel");
+
+            MessageBox.Show($"Analysis completed!\n\nProcessed: {result.FilesAnalyzed} files\nSkipped: {result.FilesSkipped} files",
+                           "Analysis Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to refresh project analysis for {SelectedProject.Name}", ex, "MainViewModel");
+            MessageBox.Show($"Analysis failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ClearProjectCacheAsync()
+    {
+        if (SelectedProject == null) return;
+
+        var result = MessageBox.Show(
+            $"Are you sure you want to clear all analyzed data for '{SelectedProject.Name}'?\n\nThis will remove all file analysis cache and require a fresh analysis.",
+            "Clear Project Cache",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await _databaseService.ClearProjectContextAsync(SelectedProject.Id);
+
+            // Reset statistics
+            SelectedProject.FilesAnalyzedCount = 0;
+            SelectedProject.LastAnalysisDate = null;
+            SelectedProject.LastDirectoryAnalysis = null;
+
+            // Update UI properties
+            FilesAnalyzedCount = 0;
+            LastAnalysisDate = null;
+
+            // Save updated project to database
+            await _databaseService.UpdateProjectAsync(SelectedProject);
+
+            LoggingService.LogInfo($"Cleared project cache for {SelectedProject.Name}", "MainViewModel");
+            MessageBox.Show("Project cache cleared successfully!", "Cache Cleared", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to clear project cache for {SelectedProject.Name}", ex, "MainViewModel");
+            MessageBox.Show($"Failed to clear cache: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveProjectChangesAsync()
+    {
+        if (SelectedProject == null) return;
+
+        try
+        {
+            await _databaseService.UpdateProjectAsync(SelectedProject);
+            LoggingService.LogInfo($"Saved project changes for {SelectedProject.Name}", "MainViewModel");
+            MessageBox.Show("Project changes saved successfully!", "Changes Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to save project changes for {SelectedProject.Name}", ex, "MainViewModel");
+            MessageBox.Show($"Failed to save changes: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     /// <summary>

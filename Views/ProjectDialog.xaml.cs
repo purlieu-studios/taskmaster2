@@ -1,12 +1,13 @@
 using Microsoft.Win32;
 using System.Windows;
+using System.Windows.Forms;
 
 namespace TaskMaster.Views;
 
 public partial class ProjectDialog : Window
 {
     public string ProjectName => ProjectNameTextBox.Text;
-    public string? ClaudeMdPath => string.IsNullOrWhiteSpace(ClaudeMdPathTextBox.Text) ? null : ClaudeMdPathTextBox.Text;
+    public string? ProjectDirectory => string.IsNullOrWhiteSpace(ProjectDirectoryTextBox.Text) ? null : ProjectDirectoryTextBox.Text;
 
     public ProjectDialog()
     {
@@ -18,7 +19,7 @@ public partial class ProjectDialog : Window
     {
         if (string.IsNullOrWhiteSpace(ProjectName))
         {
-            MessageBox.Show("Please enter a project name.", "Validation Error",
+            System.Windows.MessageBox.Show("Please enter a project name.", "Validation Error",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
             ProjectNameTextBox.Focus();
             return;
@@ -34,17 +35,18 @@ public partial class ProjectDialog : Window
         Close();
     }
 
-    private void BrowseButton_Click(object sender, RoutedEventArgs e)
+    private void BrowseDirectoryButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog
+        using var dialog = new FolderBrowserDialog
         {
-            Filter = "Markdown files (*.md)|*.md|All files (*.*)|*.*",
-            Title = "Select CLAUDE.md file"
+            Description = "Select project directory for analysis",
+            UseDescriptionForTitle = true,
+            ShowNewFolderButton = false
         };
 
-        if (dialog.ShowDialog() == true)
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
         {
-            ClaudeMdPathTextBox.Text = dialog.FileName;
+            ProjectDirectoryTextBox.Text = dialog.SelectedPath;
         }
     }
 }

@@ -71,6 +71,24 @@ public class DatabaseService
                 FOREIGN KEY (ProjectId) REFERENCES Projects (Id)
             )";
 
+        var createProjectContextTable = @"
+            CREATE TABLE IF NOT EXISTS ProjectContext (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ProjectId INTEGER NOT NULL,
+                FilePath TEXT NOT NULL,
+                FileType TEXT NOT NULL,
+                Content TEXT,
+                LastAnalyzed TEXT NOT NULL,
+                Relationships TEXT,
+                FileSize INTEGER NOT NULL DEFAULT 0,
+                LastModified TEXT NOT NULL,
+                FileHash TEXT,
+                IsRelevant INTEGER NOT NULL DEFAULT 1,
+                RelevanceScore INTEGER NOT NULL DEFAULT 50,
+                FOREIGN KEY (ProjectId) REFERENCES Projects (Id),
+                UNIQUE(ProjectId, FilePath)
+            )";
+
         using var command = new SqliteCommand(createProjectsTable, connection);
         command.ExecuteNonQuery();
 
@@ -80,11 +98,19 @@ public class DatabaseService
         command.CommandText = createDraftTasksTable;
         command.ExecuteNonQuery();
 
+        command.CommandText = createProjectContextTable;
+        command.ExecuteNonQuery();
+
         // Add basic indexes for performance (excluding Priority which may not exist yet)
         var createBasicIndexes = @"
             CREATE INDEX IF NOT EXISTS idx_taskspecs_project_number ON TaskSpecs(ProjectId, Number);
             CREATE INDEX IF NOT EXISTS idx_taskspecs_status ON TaskSpecs(Status);
             CREATE INDEX IF NOT EXISTS idx_drafttasks_project ON DraftTasks(ProjectId);
+            CREATE INDEX IF NOT EXISTS idx_projectcontext_project ON ProjectContext(ProjectId);
+            CREATE INDEX IF NOT EXISTS idx_projectcontext_filepath ON ProjectContext(FilePath);
+            CREATE INDEX IF NOT EXISTS idx_projectcontext_filetype ON ProjectContext(FileType);
+            CREATE INDEX IF NOT EXISTS idx_projectcontext_relevance ON ProjectContext(RelevanceScore);
+            CREATE INDEX IF NOT EXISTS idx_projectcontext_lastmodified ON ProjectContext(LastModified);
         ";
         command.CommandText = createBasicIndexes;
         command.ExecuteNonQuery();
@@ -97,6 +123,12 @@ public class DatabaseService
 
         // Migrate existing data: add Task Decomposition columns if they don't exist
         MigrateToTaskDecomposition(connection);
+
+        // Migrate existing data: add ProjectDirectory column if it doesn't exist
+        MigrateToProjectDirectory(connection);
+
+        // Migrate existing data: add analysis statistics columns if they don't exist
+        MigrateToAnalysisStatistics(connection);
     }
 
     private void MigrateToNextNumber(SqliteConnection connection)
@@ -272,6 +304,88 @@ public class DatabaseService
         }
     }
 
+    private void MigrateToProjectDirectory(SqliteConnection connection)
+    {
+        try
+        {
+            // Check if ProjectDirectory column exists
+            var checkColumnQuery = "PRAGMA table_info(Projects)";
+            using var checkCommand = new SqliteCommand(checkColumnQuery, connection);
+            using var reader = checkCommand.ExecuteReader();
+
+            bool hasProjectDirectory = false;
+            while (reader.Read())
+            {
+                if (reader.GetString(1) == "ProjectDirectory")
+                {
+                    hasProjectDirectory = true;
+                    break;
+                }
+            }
+            reader.Close();
+
+            if (!hasProjectDirectory)
+            {
+                // Add ProjectDirectory column
+                var addColumnQuery = "ALTER TABLE Projects ADD COLUMN ProjectDirectory TEXT";
+                using var addCommand = new SqliteCommand(addColumnQuery, connection);
+                addCommand.ExecuteNonQuery();
+
+                LoggingService.LogInfo("Migrated database to include ProjectDirectory field", "DatabaseService");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to migrate ProjectDirectory field", ex, "DatabaseService");
+        }
+    }
+
+    private void MigrateToAnalysisStatistics(SqliteConnection connection)
+    {
+        try
+        {
+            // Check which analysis statistics columns exist
+            var checkColumnQuery = "PRAGMA table_info(Projects)";
+            using var checkCommand = new SqliteCommand(checkColumnQuery, connection);
+            using var reader = checkCommand.ExecuteReader();
+
+            var existingColumns = new HashSet<string>();
+            while (reader.Read())
+            {
+                existingColumns.Add(reader.GetString(1));
+            }
+            reader.Close();
+
+            // Add missing analysis statistics columns
+            if (!existingColumns.Contains("LastAnalysisDate"))
+            {
+                var addColumnQuery = "ALTER TABLE Projects ADD COLUMN LastAnalysisDate TEXT";
+                using var addCommand = new SqliteCommand(addColumnQuery, connection);
+                addCommand.ExecuteNonQuery();
+            }
+
+            if (!existingColumns.Contains("FilesAnalyzedCount"))
+            {
+                var addColumnQuery = "ALTER TABLE Projects ADD COLUMN FilesAnalyzedCount INTEGER NOT NULL DEFAULT 0";
+                using var addCommand = new SqliteCommand(addColumnQuery, connection);
+                addCommand.ExecuteNonQuery();
+            }
+
+            if (!existingColumns.Contains("LastDirectoryAnalysis"))
+            {
+                var addColumnQuery = "ALTER TABLE Projects ADD COLUMN LastDirectoryAnalysis TEXT";
+                using var addCommand = new SqliteCommand(addColumnQuery, connection);
+                addCommand.ExecuteNonQuery();
+            }
+
+            LoggingService.LogInfo("Migrated database to include analysis statistics fields", "DatabaseService");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to migrate analysis statistics fields", ex, "DatabaseService");
+        }
+    }
+
     public async Task<List<Project>> GetProjectsAsync()
     {
         using var connection = new SqliteConnection(_connectionString);
@@ -293,7 +407,11 @@ public class DatabaseService
                 NextNumber = reader.GetInt32(reader.GetOrdinal("NextNumber")),
                 LastUpdated = DateTime.Parse(reader.GetString(reader.GetOrdinal("LastUpdated"))),
                 ClaudeMdPath = reader.IsDBNull(reader.GetOrdinal("ClaudeMdPath")) ? null : reader.GetString(reader.GetOrdinal("ClaudeMdPath")),
-                Metadata = reader.IsDBNull(reader.GetOrdinal("Metadata")) ? null : reader.GetString(reader.GetOrdinal("Metadata"))
+                ProjectDirectory = HasColumn(reader, "ProjectDirectory") && !reader.IsDBNull(reader.GetOrdinal("ProjectDirectory")) ? reader.GetString(reader.GetOrdinal("ProjectDirectory")) : null,
+                Metadata = reader.IsDBNull(reader.GetOrdinal("Metadata")) ? null : reader.GetString(reader.GetOrdinal("Metadata")),
+                LastAnalysisDate = HasColumn(reader, "LastAnalysisDate") && !reader.IsDBNull(reader.GetOrdinal("LastAnalysisDate")) ? DateTime.Parse(reader.GetString(reader.GetOrdinal("LastAnalysisDate"))) : null,
+                FilesAnalyzedCount = HasColumn(reader, "FilesAnalyzedCount") ? reader.GetInt32(reader.GetOrdinal("FilesAnalyzedCount")) : 0,
+                LastDirectoryAnalysis = HasColumn(reader, "LastDirectoryAnalysis") && !reader.IsDBNull(reader.GetOrdinal("LastDirectoryAnalysis")) ? DateTime.Parse(reader.GetString(reader.GetOrdinal("LastDirectoryAnalysis"))) : null
             });
         }
 
@@ -320,27 +438,67 @@ public class DatabaseService
                 NextNumber = reader.GetInt32(reader.GetOrdinal("NextNumber")),
                 LastUpdated = DateTime.Parse(reader.GetString(reader.GetOrdinal("LastUpdated"))),
                 ClaudeMdPath = reader.IsDBNull(reader.GetOrdinal("ClaudeMdPath")) ? null : reader.GetString(reader.GetOrdinal("ClaudeMdPath")),
-                Metadata = reader.IsDBNull(reader.GetOrdinal("Metadata")) ? null : reader.GetString(reader.GetOrdinal("Metadata"))
+                ProjectDirectory = HasColumn(reader, "ProjectDirectory") && !reader.IsDBNull(reader.GetOrdinal("ProjectDirectory")) ? reader.GetString(reader.GetOrdinal("ProjectDirectory")) : null,
+                Metadata = reader.IsDBNull(reader.GetOrdinal("Metadata")) ? null : reader.GetString(reader.GetOrdinal("Metadata")),
+                LastAnalysisDate = HasColumn(reader, "LastAnalysisDate") && !reader.IsDBNull(reader.GetOrdinal("LastAnalysisDate")) ? DateTime.Parse(reader.GetString(reader.GetOrdinal("LastAnalysisDate"))) : null,
+                FilesAnalyzedCount = HasColumn(reader, "FilesAnalyzedCount") ? reader.GetInt32(reader.GetOrdinal("FilesAnalyzedCount")) : 0,
+                LastDirectoryAnalysis = HasColumn(reader, "LastDirectoryAnalysis") && !reader.IsDBNull(reader.GetOrdinal("LastDirectoryAnalysis")) ? DateTime.Parse(reader.GetString(reader.GetOrdinal("LastDirectoryAnalysis"))) : null
             };
         }
 
         return null;
     }
 
-    public async Task<Project> CreateProjectAsync(string name, string? claudeMdPath = null)
+    public async Task<Project> CreateProjectAsync(string name, string? projectDirectory = null)
     {
         using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
-        var query = @"
-            INSERT INTO Projects (Name, TaskCount, NextNumber, LastUpdated, ClaudeMdPath)
-            VALUES (@Name, 0, 1, @LastUpdated, @ClaudeMdPath);
-            SELECT last_insert_rowid();";
+        // Check if ProjectDirectory column exists
+        var checkColumnQuery = "PRAGMA table_info(Projects)";
+        using var checkCommand = new SqliteCommand(checkColumnQuery, connection);
+        using var reader = await checkCommand.ExecuteReaderAsync();
+
+        bool hasProjectDirectory = false;
+        while (await reader.ReadAsync())
+        {
+            if (reader.GetString(1) == "ProjectDirectory")
+            {
+                hasProjectDirectory = true;
+                break;
+            }
+        }
+        reader.Close();
+
+        string query;
+        if (hasProjectDirectory)
+        {
+            query = @"
+                INSERT INTO Projects (Name, TaskCount, NextNumber, LastUpdated, ProjectDirectory)
+                VALUES (@Name, 0, 1, @LastUpdated, @ProjectDirectory);
+                SELECT last_insert_rowid();";
+        }
+        else
+        {
+            // Legacy compatibility - use ClaudeMdPath column
+            query = @"
+                INSERT INTO Projects (Name, TaskCount, NextNumber, LastUpdated, ClaudeMdPath)
+                VALUES (@Name, 0, 1, @LastUpdated, @ClaudeMdPath);
+                SELECT last_insert_rowid();";
+        }
 
         using var command = new SqliteCommand(query, connection);
         command.Parameters.AddWithValue("@Name", name);
         command.Parameters.AddWithValue("@LastUpdated", DateTime.UtcNow.ToString("O"));
-        command.Parameters.AddWithValue("@ClaudeMdPath", claudeMdPath ?? (object)DBNull.Value);
+
+        if (hasProjectDirectory)
+        {
+            command.Parameters.AddWithValue("@ProjectDirectory", projectDirectory ?? (object)DBNull.Value);
+        }
+        else
+        {
+            command.Parameters.AddWithValue("@ClaudeMdPath", projectDirectory ?? (object)DBNull.Value);
+        }
 
         var id = Convert.ToInt32(await command.ExecuteScalarAsync());
 
@@ -350,7 +508,8 @@ public class DatabaseService
             Name = name,
             TaskCount = 0,
             LastUpdated = DateTime.UtcNow,
-            ClaudeMdPath = claudeMdPath
+            ProjectDirectory = projectDirectory,
+            ClaudeMdPath = hasProjectDirectory ? null : projectDirectory // Legacy compatibility
         };
     }
 
@@ -359,11 +518,50 @@ public class DatabaseService
         using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync();
 
-        var query = @"
-            UPDATE Projects
-            SET Name = @Name, TaskCount = @TaskCount, LastUpdated = @LastUpdated,
-                ClaudeMdPath = @ClaudeMdPath, Metadata = @Metadata
-            WHERE Id = @Id";
+        // Check which columns exist
+        var checkColumnQuery = "PRAGMA table_info(Projects)";
+        using var checkCommand = new SqliteCommand(checkColumnQuery, connection);
+        using var reader = await checkCommand.ExecuteReaderAsync();
+
+        var existingColumns = new HashSet<string>();
+        while (await reader.ReadAsync())
+        {
+            existingColumns.Add(reader.GetString(1));
+        }
+        reader.Close();
+
+        // Check for specific columns
+        var hasProjectDirectory = existingColumns.Contains("ProjectDirectory");
+        var hasLastAnalysisDate = existingColumns.Contains("LastAnalysisDate");
+        var hasFilesAnalyzedCount = existingColumns.Contains("FilesAnalyzedCount");
+        var hasLastDirectoryAnalysis = existingColumns.Contains("LastDirectoryAnalysis");
+
+        string query;
+        if (hasProjectDirectory && hasLastAnalysisDate && hasFilesAnalyzedCount && hasLastDirectoryAnalysis)
+        {
+            query = @"
+                UPDATE Projects
+                SET Name = @Name, TaskCount = @TaskCount, LastUpdated = @LastUpdated,
+                    ClaudeMdPath = @ClaudeMdPath, ProjectDirectory = @ProjectDirectory, Metadata = @Metadata,
+                    LastAnalysisDate = @LastAnalysisDate, FilesAnalyzedCount = @FilesAnalyzedCount, LastDirectoryAnalysis = @LastDirectoryAnalysis
+                WHERE Id = @Id";
+        }
+        else if (hasProjectDirectory)
+        {
+            query = @"
+                UPDATE Projects
+                SET Name = @Name, TaskCount = @TaskCount, LastUpdated = @LastUpdated,
+                    ClaudeMdPath = @ClaudeMdPath, ProjectDirectory = @ProjectDirectory, Metadata = @Metadata
+                WHERE Id = @Id";
+        }
+        else
+        {
+            query = @"
+                UPDATE Projects
+                SET Name = @Name, TaskCount = @TaskCount, LastUpdated = @LastUpdated,
+                    ClaudeMdPath = @ClaudeMdPath, Metadata = @Metadata
+                WHERE Id = @Id";
+        }
 
         using var command = new SqliteCommand(query, connection);
         command.Parameters.AddWithValue("@Id", project.Id);
@@ -372,6 +570,26 @@ public class DatabaseService
         command.Parameters.AddWithValue("@LastUpdated", project.LastUpdated.ToString("O"));
         command.Parameters.AddWithValue("@ClaudeMdPath", project.ClaudeMdPath ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@Metadata", project.Metadata ?? (object)DBNull.Value);
+
+        if (hasProjectDirectory)
+        {
+            command.Parameters.AddWithValue("@ProjectDirectory", project.ProjectDirectory ?? (object)DBNull.Value);
+        }
+
+        if (hasLastAnalysisDate)
+        {
+            command.Parameters.AddWithValue("@LastAnalysisDate", project.LastAnalysisDate?.ToString("O") ?? (object)DBNull.Value);
+        }
+
+        if (hasFilesAnalyzedCount)
+        {
+            command.Parameters.AddWithValue("@FilesAnalyzedCount", project.FilesAnalyzedCount);
+        }
+
+        if (hasLastDirectoryAnalysis)
+        {
+            command.Parameters.AddWithValue("@LastDirectoryAnalysis", project.LastDirectoryAnalysis?.ToString("O") ?? (object)DBNull.Value);
+        }
 
         await command.ExecuteNonQueryAsync();
     }
@@ -1110,5 +1328,214 @@ public class DatabaseService
             LoggingService.LogError($"Failed to update priority for task #{taskId}", ex, "DatabaseService");
             return false;
         }
+    }
+
+    // ProjectContext CRUD operations
+
+    public async Task<List<ProjectContext>> GetProjectContextsAsync(int projectId)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var contexts = new List<ProjectContext>();
+        var query = "SELECT * FROM ProjectContext WHERE ProjectId = @ProjectId ORDER BY FilePath";
+
+        using var command = new SqliteCommand(query, connection);
+        command.Parameters.AddWithValue("@ProjectId", projectId);
+
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            contexts.Add(MapProjectContextFromReader(reader));
+        }
+
+        return contexts;
+    }
+
+    public async Task<ProjectContext> SaveProjectContextAsync(ProjectContext context)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        if (context.Id == 0)
+        {
+            // Insert new context
+            var query = @"
+                INSERT INTO ProjectContext (
+                    ProjectId, FilePath, FileType, Content, LastAnalyzed,
+                    Relationships, FileSize, LastModified, FileHash, IsRelevant, RelevanceScore
+                ) VALUES (
+                    @ProjectId, @FilePath, @FileType, @Content, @LastAnalyzed,
+                    @Relationships, @FileSize, @LastModified, @FileHash, @IsRelevant, @RelevanceScore
+                );
+                SELECT last_insert_rowid();";
+
+            using var command = new SqliteCommand(query, connection);
+            AddProjectContextParameters(command, context);
+
+            context.Id = Convert.ToInt32(await command.ExecuteScalarAsync());
+        }
+        else
+        {
+            // Update existing context
+            var query = @"
+                UPDATE ProjectContext SET
+                    ProjectId = @ProjectId, FilePath = @FilePath, FileType = @FileType,
+                    Content = @Content, LastAnalyzed = @LastAnalyzed, Relationships = @Relationships,
+                    FileSize = @FileSize, LastModified = @LastModified, FileHash = @FileHash,
+                    IsRelevant = @IsRelevant, RelevanceScore = @RelevanceScore
+                WHERE Id = @Id";
+
+            using var command = new SqliteCommand(query, connection);
+            command.Parameters.AddWithValue("@Id", context.Id);
+            AddProjectContextParameters(command, context);
+
+            await command.ExecuteNonQueryAsync();
+        }
+
+        return context;
+    }
+
+    public async Task SaveProjectContextBatchAsync(List<ProjectContext> contexts)
+    {
+        if (contexts.Count == 0) return;
+
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            foreach (var context in contexts)
+            {
+                // Use INSERT OR REPLACE to handle duplicates
+                var query = @"
+                    INSERT OR REPLACE INTO ProjectContext (
+                        Id, ProjectId, FilePath, FileType, Content, LastAnalyzed,
+                        Relationships, FileSize, LastModified, FileHash, IsRelevant, RelevanceScore
+                    ) VALUES (
+                        COALESCE((SELECT Id FROM ProjectContext WHERE ProjectId = @ProjectId AND FilePath = @FilePath), NULL),
+                        @ProjectId, @FilePath, @FileType, @Content, @LastAnalyzed,
+                        @Relationships, @FileSize, @LastModified, @FileHash, @IsRelevant, @RelevanceScore
+                    )";
+
+                using var command = new SqliteCommand(query, connection, transaction);
+                AddProjectContextParameters(command, context);
+                await command.ExecuteNonQueryAsync();
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<bool> DeleteProjectContextByPathAsync(int projectId, string filePath)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var query = "DELETE FROM ProjectContext WHERE ProjectId = @ProjectId AND FilePath = @FilePath";
+        using var command = new SqliteCommand(query, connection);
+        command.Parameters.AddWithValue("@ProjectId", projectId);
+        command.Parameters.AddWithValue("@FilePath", filePath);
+
+        var rowsAffected = await command.ExecuteNonQueryAsync();
+        return rowsAffected > 0;
+    }
+
+    public async Task<bool> ClearProjectContextAsync(int projectId)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var query = "DELETE FROM ProjectContext WHERE ProjectId = @ProjectId";
+        using var command = new SqliteCommand(query, connection);
+        command.Parameters.AddWithValue("@ProjectId", projectId);
+
+        await command.ExecuteNonQueryAsync();
+        return true;
+    }
+
+    public async Task<ProjectContext?> GetProjectContextByPathAsync(int projectId, string filePath)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var query = "SELECT * FROM ProjectContext WHERE ProjectId = @ProjectId AND FilePath = @FilePath";
+        using var command = new SqliteCommand(query, connection);
+        command.Parameters.AddWithValue("@ProjectId", projectId);
+        command.Parameters.AddWithValue("@FilePath", filePath);
+
+        using var reader = await command.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return MapProjectContextFromReader(reader);
+        }
+
+        return null;
+    }
+
+    public async Task<List<ProjectContext>> GetProjectContextsByRelevanceAsync(int projectId, int minRelevanceScore = 0, int limit = 100)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var query = @"
+            SELECT * FROM ProjectContext
+            WHERE ProjectId = @ProjectId AND IsRelevant = 1 AND RelevanceScore >= @MinRelevanceScore
+            ORDER BY RelevanceScore DESC, FilePath
+            LIMIT @Limit";
+
+        using var command = new SqliteCommand(query, connection);
+        command.Parameters.AddWithValue("@ProjectId", projectId);
+        command.Parameters.AddWithValue("@MinRelevanceScore", minRelevanceScore);
+        command.Parameters.AddWithValue("@Limit", limit);
+
+        var contexts = new List<ProjectContext>();
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            contexts.Add(MapProjectContextFromReader(reader));
+        }
+
+        return contexts;
+    }
+
+    private static void AddProjectContextParameters(SqliteCommand command, ProjectContext context)
+    {
+        command.Parameters.AddWithValue("@ProjectId", context.ProjectId);
+        command.Parameters.AddWithValue("@FilePath", context.FilePath);
+        command.Parameters.AddWithValue("@FileType", context.FileType);
+        command.Parameters.AddWithValue("@Content", context.Content ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@LastAnalyzed", context.LastAnalyzed.ToString("O"));
+        command.Parameters.AddWithValue("@Relationships", context.Relationships ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@FileSize", context.FileSize);
+        command.Parameters.AddWithValue("@LastModified", context.LastModified.ToString("O"));
+        command.Parameters.AddWithValue("@FileHash", context.FileHash ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("@IsRelevant", context.IsRelevant ? 1 : 0);
+        command.Parameters.AddWithValue("@RelevanceScore", context.RelevanceScore);
+    }
+
+    private static ProjectContext MapProjectContextFromReader(SqliteDataReader reader)
+    {
+        return new ProjectContext
+        {
+            Id = reader.GetInt32(reader.GetOrdinal("Id")),
+            ProjectId = reader.GetInt32(reader.GetOrdinal("ProjectId")),
+            FilePath = reader.GetString(reader.GetOrdinal("FilePath")),
+            FileType = reader.GetString(reader.GetOrdinal("FileType")),
+            Content = reader.IsDBNull(reader.GetOrdinal("Content")) ? null : reader.GetString(reader.GetOrdinal("Content")),
+            LastAnalyzed = DateTime.Parse(reader.GetString(reader.GetOrdinal("LastAnalyzed"))),
+            Relationships = reader.IsDBNull(reader.GetOrdinal("Relationships")) ? null : reader.GetString(reader.GetOrdinal("Relationships")),
+            FileSize = reader.GetInt64(reader.GetOrdinal("FileSize")),
+            LastModified = DateTime.Parse(reader.GetString(reader.GetOrdinal("LastModified"))),
+            FileHash = reader.IsDBNull(reader.GetOrdinal("FileHash")) ? null : reader.GetString(reader.GetOrdinal("FileHash")),
+            IsRelevant = reader.GetInt32(reader.GetOrdinal("IsRelevant")) == 1,
+            RelevanceScore = reader.GetInt32(reader.GetOrdinal("RelevanceScore"))
+        };
     }
 }

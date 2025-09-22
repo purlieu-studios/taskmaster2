@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:TaskMaster.ViewModels"
         xmlns:views="clr-namespace:TaskMaster.Views"
+        xmlns:converters="clr-namespace:TaskMaster.Converters"
         Title="TaskMaster" Height="800" Width="1200"
         WindowStartupLocation="CenterScreen"
         Background="#0F1419">
@@ -13,6 +14,7 @@
     <Window.Resources>
         <!-- Converters -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:BooleanNotNullConverter x:Key="BooleanNotNullConverter"/>
 
         <!-- Design System Colors -->
         <SolidColorBrush x:Key="PrimaryBackground" Color="#0F1419"/>
@@ -413,6 +415,8 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="120"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
@@ -430,11 +434,16 @@
                           Style="{StaticResource StandardComboBox}"/>
 
                 <Button Grid.Column="4" Content="+ Add Project" Command="{Binding CreateProjectCommand}"
-                        Style="{StaticResource GhostButton}" VerticalAlignment="Center" Margin="0,0,24,0"/>
+                        Style="{StaticResource GhostButton}" VerticalAlignment="Center" Margin="0,0,12,0"/>
 
-                <TextBlock Grid.Column="5" Text="Type" VerticalAlignment="Center" FontWeight="Medium"
+                <Button Grid.Column="5" Content="⚙️ Settings" Command="{Binding OpenProjectSettingsCommand}"
+                        Style="{StaticResource GhostButton}" VerticalAlignment="Center" Margin="0,0,24,0"
+                        IsEnabled="{Binding SelectedProject, Converter={StaticResource BooleanNotNullConverter}}"
+                        ToolTip="Edit project settings and manage directory analysis"/>
+
+                <TextBlock Grid.Column="6" Text="Type" VerticalAlignment="Center" FontWeight="Medium"
                            Margin="0,0,12,0" Foreground="{StaticResource TextSecondary}" FontSize="14"/>
-                <ComboBox Grid.Column="6" SelectedValue="{Binding TypeFilter}" SelectedValuePath="Tag"
+                <ComboBox Grid.Column="7" SelectedValue="{Binding TypeFilter}" SelectedValuePath="Tag"
                           VerticalAlignment="Center" Margin="0,0,16,0" Height="36"
                           Style="{StaticResource BeautifulComboBox}">
                     <ComboBoxItem Content="All" Tag="All" IsSelected="True"/>
@@ -445,9 +454,9 @@
                     <ComboBoxItem Content="🔧 refactor" Tag="refactor"/>
                 </ComboBox>
 
-                <TextBlock Grid.Column="7" Text="Status" VerticalAlignment="Center" FontWeight="Medium"
+                <TextBlock Grid.Column="8" Text="Status" VerticalAlignment="Center" FontWeight="Medium"
                            Margin="0,0,12,0" Foreground="{StaticResource TextSecondary}" FontSize="14"/>
-                <ComboBox Grid.Column="8" SelectedValue="{Binding StatusFilter}" SelectedValuePath="Tag"
+                <ComboBox Grid.Column="9" SelectedValue="{Binding StatusFilter}" SelectedValuePath="Tag"
                           VerticalAlignment="Center" Margin="0,0,16,0" Height="36"
                           Style="{StaticResource BeautifulComboBox}">
                     <ComboBoxItem Content="All" Tag="All" IsSelected="True"/>
@@ -464,6 +473,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <!-- Beautiful Task List Card -->
@@ -478,9 +488,37 @@
 
             <!-- Task Detail Side Panel -->
             <views:TaskDetailPanel Grid.Column="1" x:Name="TaskDetailPanel"
-                                   Width="450" Margin="16,20,32,32"
+                                   Width="450" Margin="16,20,16,32"
                                    Visibility="{Binding IsTaskDetailPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
                                    DataContext="{Binding SelectedTaskDetail}"/>
+
+            <!-- Project Settings Side Panel -->
+            <views:ProjectSettingsPanel Grid.Column="2" x:Name="ProjectSettingsPanel"
+                                        Width="450" Margin="16,20,32,32"
+                                        Visibility="{Binding IsProjectSettingsPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        DataContext="{Binding}">
+                <views:ProjectSettingsPanel.RenderTransform>
+                    <TranslateTransform/>
+                </views:ProjectSettingsPanel.RenderTransform>
+                <views:ProjectSettingsPanel.Triggers>
+                    <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.X"
+                                               From="450" To="0"
+                                               Duration="0:0:0.3">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                               From="0" To="1"
+                                               Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                </views:ProjectSettingsPanel.Triggers>
+            </views:ProjectSettingsPanel>
         </Grid>
         </Grid>
 
