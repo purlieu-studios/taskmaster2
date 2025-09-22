@@ -241,6 +241,20 @@ If validation fails, the app alerts the user and rolls back any partial changes.
 
 ---
 
+## Development Practices
+
+**Build After Every Major Change**:
+After implementing any major change (new features, converter updates, XAML modifications, etc.), ALWAYS run `dotnet build TaskMaster.csproj` to verify compilation and fix any errors before presenting work to the user. Address all compilation errors immediately - warnings are acceptable but errors must be resolved.
+
+**Test Critical Paths**:
+After fixing build errors, run the application to verify core functionality works as expected, especially when modifying:
+- XAML bindings and converters
+- Database operations and migrations
+- UI component visibility and styling
+- Task creation and complexity calculation flows
+
+---
+
 ## TL;DR (do this, then ship)
 
 1. **User chooses a project from dropdown (SQLite-backed).**
