@@ -1,8 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace TaskMaster.Models;
 
-public class TaskSpec
+public partial class TaskSpec : ObservableValidator
 {
     public int Id { get; set; }
 
@@ -10,50 +11,68 @@ public class TaskSpec
 
     public int Number { get; set; } // Per-project sequential number
 
+    [ObservableProperty]
     [Required]
-    public string Title { get; set; } = string.Empty;
+    private string _title = string.Empty;
 
     public string Slug { get; set; } = string.Empty;
 
-    public string Type { get; set; } = "feature"; // feature, bug, enhancement, etc.
+    [ObservableProperty]
+    private string _type = "feature"; // feature, bug, enhancement, etc.
 
-    public TaskStatus Status { get; set; } = TaskStatus.Todo;
+    [ObservableProperty]
+    private TaskStatus _status = TaskStatus.Todo;
 
-    public int Priority { get; set; } = 50; // 0-1000, default medium priority
+    [ObservableProperty]
+    private int _priority = 50; // 0-1000, default medium priority
 
     public DateTime Created { get; set; } = DateTime.UtcNow;
 
+    [ObservableProperty]
     [Required]
-    public string Summary { get; set; } = string.Empty;
+    private string _summary = string.Empty;
 
-    public string AcceptanceCriteria { get; set; } = string.Empty; // JSON array
+    [ObservableProperty]
+    private string _acceptanceCriteria = string.Empty; // JSON array
 
-    public string? NonGoals { get; set; }
+    [ObservableProperty]
+    private string? _nonGoals;
 
-    public string TestPlan { get; set; } = string.Empty; // JSON array
+    [ObservableProperty]
+    private string _testPlan = string.Empty; // JSON array
 
-    public string ScopePaths { get; set; } = string.Empty; // JSON array
+    [ObservableProperty]
+    private string _scopePaths = string.Empty; // JSON array
 
-    public string RequiredDocs { get; set; } = string.Empty; // JSON array
+    [ObservableProperty]
+    private string _requiredDocs = string.Empty; // JSON array
 
-    public string? Notes { get; set; }
+    [ObservableProperty]
+    private string? _notes;
 
-    public string? SuggestedTasks { get; set; } // JSON array of suggested related tasks
+    [ObservableProperty]
+    private string? _suggestedTasks; // JSON array of suggested related tasks
 
-    public string? NextSteps { get; set; } // JSON array of suggested next steps
+    [ObservableProperty]
+    private string? _nextSteps; // JSON array of suggested next steps
 
     // Task Decomposition Properties
     public int? ParentTaskId { get; set; } // For hierarchical task structure
 
-    public int EstimatedEffort { get; set; } = 0; // Story points or hours
+    [ObservableProperty]
+    private int _estimatedEffort = 0; // Story points or hours
 
-    public int ActualEffort { get; set; } = 0; // Actual time spent
+    [ObservableProperty]
+    private int _actualEffort = 0; // Actual time spent
 
-    public int ComplexityScore { get; set; } = 0; // Calculated complexity (0-100)
+    [ObservableProperty]
+    private int _complexityScore = 0; // Calculated complexity (0-100)
 
-    public bool IsDecomposed { get; set; } = false; // Whether task has been broken down
+    [ObservableProperty]
+    private bool _isDecomposed = false; // Whether task has been broken down
 
-    public string? DecompositionStrategy { get; set; } // How task was decomposed (layer, feature, phase, etc.)
+    [ObservableProperty]
+    private string? _decompositionStrategy; // How task was decomposed (layer, feature, phase, etc.)
 
     // Navigation properties
     public Project Project { get; set; } = null!;

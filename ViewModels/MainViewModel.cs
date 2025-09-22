@@ -12,7 +12,7 @@ using TaskMaster.Views;
 
 namespace TaskMaster.ViewModels;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : EnhancedViewModelBase
 {
     private readonly DatabaseService _databaseService;
     private readonly ClaudeService _claudeService;
@@ -145,7 +145,31 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private DateTime? _lastAnalysisDate;
 
+    // Proxy property for project directory binding
+    public string? SelectedProjectDirectory
+    {
+        get => SelectedProject?.ProjectDirectory;
+        set
+        {
+            if (SelectedProject != null && SelectedProject.ProjectDirectory != value)
+            {
+                var oldValue = SelectedProject.ProjectDirectory;
+                SelectedProject.ProjectDirectory = value;
+
+                // Enhanced logging for this critical binding property
+                EnhancedLoggingService.LogPropertyChange(
+                    nameof(SelectedProjectDirectory),
+                    oldValue,
+                    value,
+                    "MainViewModel.ProxyBinding");
+
+                OnPropertyChanged(nameof(SelectedProjectDirectory));
+            }
+        }
+    }
+
     private ClaudeInferenceResponse? _lastInference;
+    private Project? _subscribedProject; // Track project for PropertyChanged subscription
 
     public MainViewModel()
     {
@@ -258,7 +282,7 @@ public partial class MainViewModel : ObservableObject
             if (SelectedProject != null)
             {
                 SelectedProject.ClaudeMdPath = ClaudeMdPath;
-                UpdateProjectAsync();
+                _ = UpdateProjectAsync(); // Fire and forget - update in background
             }
         }
     }
@@ -841,7 +865,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    private async void UpdateProjectAsync()
+    private async Task UpdateProjectAsync()
     {
         if (SelectedProject != null)
         {
@@ -859,9 +883,35 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedProjectChanged(Project? value)
     {
-        if (value != null && !string.IsNullOrEmpty(value.ClaudeMdPath))
+        // Unsubscribe from old project
+        if (_subscribedProject != null)
         {
-            ClaudeMdPath = value.ClaudeMdPath;
+            _subscribedProject.PropertyChanged -= OnProjectPropertyChanged;
+        }
+
+        // Subscribe to new project
+        if (value != null)
+        {
+            value.PropertyChanged += OnProjectPropertyChanged;
+
+            if (!string.IsNullOrEmpty(value.ClaudeMdPath))
+            {
+                ClaudeMdPath = value.ClaudeMdPath;
+            }
+        }
+
+        _subscribedProject = value;
+
+        // Notify proxy property when SelectedProject changes
+        OnPropertyChanged(nameof(SelectedProjectDirectory));
+    }
+
+    private void OnProjectPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Project.ProjectDirectory))
+        {
+            // Re-notify the proxy property when the underlying Project's ProjectDirectory changes
+            OnPropertyChanged(nameof(SelectedProjectDirectory));
         }
     }
 
@@ -918,27 +968,54 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowLogsCommand()
     {
+        LogCommandExecution(nameof(ShowLogsCommand));
+
         try
         {
-            var logPath = LoggingService.GetLogFilePath();
-            if (File.Exists(logPath))
+            var logViewerWindow = new LogViewerWindow
             {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = logPath,
-                    UseShellExecute = true
-                });
-            }
-            else
-            {
-                MessageBox.Show("Log file not found.", "File Not Found",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+                Owner = Application.Current.MainWindow
+            };
+
+            EnhancedLoggingService.LogInfo("Opening enhanced log viewer window", "MainViewModel");
+            logViewerWindow.Show();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to open log file: {ex.Message}", "Error",
+            EnhancedLoggingService.LogError("Failed to open log viewer window", ex, "MainViewModel");
+            MessageBox.Show($"Failed to open log viewer: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportDebugPackageCommand()
+    {
+        LogCommandExecution(nameof(ExportDebugPackageCommand));
+
+        try
+        {
+            var packagePath = await EnhancedLoggingService.ExportDebugPackageAsync();
+
+            MessageBox.Show($"Debug package created successfully!\n\nPath: {packagePath}\n\nThis package contains all logs, system information, and database snapshot for debugging assistance.",
+                "Debug Package Created", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // Offer to open the folder
+            var result = MessageBox.Show("Would you like to open the folder containing the debug package?",
+                "Open Folder?", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{packagePath}\"");
+            }
+
+            EnhancedLoggingService.LogInfo($"Debug package exported: {packagePath}", "MainViewModel");
+        }
+        catch (Exception ex)
+        {
+            EnhancedLoggingService.LogError("Failed to export debug package", ex, "MainViewModel");
+            MessageBox.Show($"Failed to export debug package: {ex.Message}", "Export Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -1355,9 +1432,17 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void BrowseProjectDirectory()
+    private async Task BrowseProjectDirectory()
     {
-        if (SelectedProject == null) return;
+        LogCommandExecution(nameof(BrowseProjectDirectory), SelectedProject?.Name);
+
+        if (SelectedProject == null)
+        {
+            EnhancedLoggingService.LogWarning("BrowseProjectDirectory called with no selected project", "MainViewModel");
+            return;
+        }
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         using var dialog = new System.Windows.Forms.FolderBrowserDialog
         {
@@ -1367,10 +1452,39 @@ public partial class MainViewModel : ObservableObject
             SelectedPath = SelectedProject.ProjectDirectory ?? ""
         };
 
+        EnhancedLoggingService.LogDebug($"Showing folder browser dialog with initial path: {SelectedProject.ProjectDirectory ?? "none"}", "MainViewModel");
+
         if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
         {
-            SelectedProject.ProjectDirectory = dialog.SelectedPath;
-            LoggingService.LogInfo($"Updated project directory to: {dialog.SelectedPath}", "MainViewModel");
+            // Ensure UI updates happen on the UI thread (though RelayCommand should already be on UI thread)
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                // Update both the model and the proxy property for binding
+                SelectedProjectDirectory = dialog.SelectedPath;
+
+                // Log the successful directory change
+                EnhancedLoggingService.LogInfo($"Project directory updated successfully: {dialog.SelectedPath}", "MainViewModel", new
+                {
+                    ProjectName = SelectedProject?.Name,
+                    NewPath = dialog.SelectedPath,
+                    OldPath = SelectedProject?.ProjectDirectory
+                });
+            });
+
+            // Persist changes to database immediately
+            await UpdateProjectAsync();
+
+            stopwatch.Stop();
+            LogPerformance("BrowseProjectDirectory", stopwatch.Elapsed, new
+            {
+                ProjectName = SelectedProject?.Name,
+                SelectedPath = dialog.SelectedPath
+            });
+        }
+        else
+        {
+            stopwatch.Stop();
+            EnhancedLoggingService.LogDebug("User cancelled folder browser dialog", "MainViewModel");
         }
     }
 

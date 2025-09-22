@@ -399,7 +399,13 @@
                     <Button Content="Export" Command="{Binding ExportCatalogCommand}"
                             Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                     <Button Content="Import" Command="{Binding ImportTemplateCommand}"
-                            Style="{StaticResource GhostButton}"/>
+                            Style="{StaticResource GhostButton}" Margin="0,0,8,0"/>
+                    <Button Content="📊 Logs" Command="{Binding ShowLogsCommand}"
+                            Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                            ToolTip="View application logs and debugging information"/>
+                    <Button Content="📦 Debug" Command="{Binding ExportDebugPackageCommand}"
+                            Style="{StaticResource GhostButton}"
+                            ToolTip="Export debug package for troubleshooting"/>
                 </StackPanel>
             </Grid>
         </Border>

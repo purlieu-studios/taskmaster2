@@ -1,29 +1,43 @@
 using System.ComponentModel.DataAnnotations;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace TaskMaster.Models;
 
-public class Project
+public partial class Project : ObservableValidator
 {
     public int Id { get; set; }
 
+    [ObservableProperty]
     [Required]
-    public string Name { get; set; } = string.Empty;
+    private string _name = string.Empty;
 
-    public int TaskCount { get; set; } = 0;
+    [ObservableProperty]
+    private int _taskCount = 0;
 
-    public int NextNumber { get; set; } = 1; // Next sequential number for new tasks
+    [ObservableProperty]
+    private int _nextNumber = 1; // Next sequential number for new tasks
 
-    public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+    [ObservableProperty]
+    private DateTime _lastUpdated = DateTime.UtcNow;
 
-    public string? ClaudeMdPath { get; set; } // Legacy - will be renamed to ProjectDirectory
-    public string? ProjectDirectory { get; set; } // Directory path for project analysis
+    [ObservableProperty]
+    private string? _claudeMdPath; // Legacy - will be renamed to ProjectDirectory
 
-    public string? Metadata { get; set; } // JSON string for additional metadata
+    [ObservableProperty]
+    private string? _projectDirectory; // Directory path for project analysis
+
+    [ObservableProperty]
+    private string? _metadata; // JSON string for additional metadata
 
     // Analysis Statistics
-    public DateTime? LastAnalysisDate { get; set; }
-    public int FilesAnalyzedCount { get; set; } = 0;
-    public DateTime? LastDirectoryAnalysis { get; set; }
+    [ObservableProperty]
+    private DateTime? _lastAnalysisDate;
+
+    [ObservableProperty]
+    private int _filesAnalyzedCount = 0;
+
+    [ObservableProperty]
+    private DateTime? _lastDirectoryAnalysis;
 
     public List<TaskSpec> Tasks { get; set; } = new();
 }
