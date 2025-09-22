@@ -340,14 +340,37 @@
                                        Foreground="#F9FAFB" VerticalAlignment="Center"/>
                         </StackPanel>
 
-                        <StackPanel Margin="0,0,0,16">
-                            <TextBlock Text="Task Number" FontWeight="Medium" FontSize="11"
-                                       Foreground="#D1D5DB" Margin="0,0,0,6"/>
-                            <Border Background="#0F172A" CornerRadius="6" Padding="10,6" BorderBrush="#374151" BorderThickness="1">
-                                <TextBlock Text="{Binding Number, StringFormat='#{0}'}" FontSize="12"
-                                           Foreground="#7C3AED" FontWeight="SemiBold"/>
-                            </Border>
-                        </StackPanel>
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Task Number" FontWeight="Medium" FontSize="11"
+                                           Foreground="#D1D5DB" Margin="0,0,0,6"/>
+                                <Border Background="#0F172A" CornerRadius="6" Padding="10,6" BorderBrush="#374151" BorderThickness="1">
+                                    <TextBlock Text="{Binding Number, StringFormat='#{0}'}" FontSize="12"
+                                               Foreground="#7C3AED" FontWeight="SemiBold"/>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Complexity" FontWeight="Medium" FontSize="11"
+                                           Foreground="#D1D5DB" Margin="0,0,0,6"/>
+                                <Border CornerRadius="6" Padding="10,6" BorderThickness="1" MinWidth="80"
+                                        Background="{Binding OriginalTask.ComplexityScore, Converter={StaticResource ComplexityToColorConverter}}"
+                                        BorderBrush="{Binding OriginalTask.ComplexityScore, Converter={StaticResource ComplexityToColorConverter}}">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="⚡" FontSize="14" Foreground="White" Margin="0,0,4,0"/>
+                                        <TextBlock Text="{Binding OriginalTask.ComplexityScore}" FontSize="12"
+                                                   Foreground="White" FontWeight="SemiBold"/>
+                                        <TextBlock Text="/100" FontSize="10" Foreground="White" VerticalAlignment="Bottom" Opacity="0.8"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
 
                         <StackPanel Margin="0,0,0,16">
                             <TextBlock Text="Title" FontWeight="Medium" FontSize="11"
@@ -485,6 +508,9 @@
                             Style="{StaticResource PrimaryButton}" Margin="0,0,10,0" Height="32" FontSize="12"/>
                     <Button Content="🤖 AI Assist" Command="{Binding InferSpecCommand}"
                             Style="{StaticResource SecondaryButton}" Margin="0,0,10,0" Height="32" FontSize="12"/>
+                    <Button Content="🌳 Decompose" Command="{Binding SuggestDecompositionCommand}"
+                            Style="{StaticResource SecondaryButton}" Margin="0,0,10,0" Height="32" FontSize="12"
+                            ToolTip="Analyze complexity and suggest task decomposition"/>
                     <Button Content="Cancel" Command="{Binding CancelChangesCommand}"
                             Style="{StaticResource GhostButton}" Height="32" FontSize="12"/>
                 </StackPanel>

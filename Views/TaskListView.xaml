@@ -8,6 +8,10 @@
     <UserControl.Resources>
         <!-- Converters -->
         <converters:PriorityToColorConverter x:Key="PriorityToColorConverter"/>
+        <converters:BoolToHierarchicalTextConverter x:Key="BoolToHierarchicalTextConverter"/>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
+        <converters:ComplexityToColorConverter x:Key="ComplexityToColorConverter"/>
 
         <!-- Design System Resources (consistent with MainWindow) -->
         <SolidColorBrush x:Key="CardBackground" Color="#1A1F2E"/>
@@ -119,6 +123,106 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Beautiful ComboBox Style -->
+        <Style x:Key="BeautifulComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#F9FAFB"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton" Grid.Column="2"
+                                        Focusable="false" IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                        ClickMode="Press" Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Path x:Name="Arrow" Grid.Column="1" Fill="#9CA3AF" HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" Data="M 0 0 L 3 3 L 6 0 Z"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                            Content="{TemplateBinding SelectionBoxItem}"
+                                            ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                            ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                            Margin="{TemplateBinding Padding}" VerticalAlignment="Center"
+                                            HorizontalAlignment="Left"/>
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}" MaxHeight="200">
+                                    <Border x:Name="DropDownBorder" Background="#1F2937" BorderThickness="1"
+                                            BorderBrush="#374151" CornerRadius="6" Margin="0,2,0,0">
+                                        <Border.Effect>
+                                            <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.3" BlurRadius="12"/>
+                                        </Border.Effect>
+                                        <ScrollViewer SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="#EC4899"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="#F9FAFB"/>
+                        <Setter Property="Padding" Value="8,4"/>
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" TargetName="border" Value="#374151"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" TargetName="border" Value="#7C3AED"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -139,33 +243,106 @@
                 <TextBlock Grid.Column="0" Text="Task List" FontSize="18" FontWeight="SemiBold"
                            Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
 
-                <Button Grid.Column="1" Command="{Binding ToggleViewCommand}"
-                        Background="{StaticResource BorderColor}" BorderBrush="{StaticResource TextMuted}" BorderThickness="1"
-                        Padding="12,6" FontSize="12" Foreground="{StaticResource TextPrimary}">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Style.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="{StaticResource TextMuted}"/>
-                                    <Setter Property="BorderBrush" Value="#7C3AED"/>
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                    <Button.Content>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <!-- Hierarchical View Toggle -->
+                    <Button Command="{Binding ToggleHierarchicalViewCommand}"
+                            Background="{StaticResource BorderColor}" BorderBrush="{StaticResource TextMuted}" BorderThickness="1"
+                            Padding="10,6" FontSize="11" Foreground="{StaticResource TextPrimary}" Margin="0,0,8,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource TextMuted}"/>
+                                        <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                    </Trigger>
+                                    <DataTrigger Binding="{Binding IsHierarchicalView}" Value="True">
+                                        <Setter Property="Background" Value="#7C3AED"/>
+                                        <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding IsCompactView, Converter={x:Static local:BoolToViewTextConverter.Instance}}"/>
-                            <TextBlock Text=" View" Margin="4,0,0,0"/>
+                            <TextBlock Text="🌳" Margin="0,0,4,0"/>
+                            <TextBlock Text="{Binding IsHierarchicalView, Converter={StaticResource BoolToHierarchicalTextConverter}}" />
                         </StackPanel>
-                    </Button.Content>
-                </Button>
+                    </Button>
+
+                    <!-- Compact View Toggle -->
+                    <Button Command="{Binding ToggleViewCommand}"
+                            Background="{StaticResource BorderColor}" BorderBrush="{StaticResource TextMuted}" BorderThickness="1"
+                            Padding="12,6" FontSize="12" Foreground="{StaticResource TextPrimary}" Margin="0,0,8,0">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource TextMuted}"/>
+                                        <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding IsCompactView, Converter={x:Static local:BoolToViewTextConverter.Instance}}"/>
+                                <TextBlock Text=" View" Margin="4,0,0,0"/>
+                            </StackPanel>
+                        </Button.Content>
+                    </Button>
+
+                    <!-- Sort Controls -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Sort:" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="11"/>
+                        <ComboBox SelectedValue="{Binding SortBy}" SelectedValuePath="Content" Width="100" Height="32"
+                                  Style="{StaticResource BeautifulComboBox}" Margin="0,0,4,0">
+                            <ComboBoxItem Content="Priority" IsSelected="True"/>
+                            <ComboBoxItem Content="Complexity"/>
+                            <ComboBoxItem Content="Status"/>
+                            <ComboBoxItem Content="Type"/>
+                            <ComboBoxItem Content="Created"/>
+                            <ComboBoxItem Content="Title"/>
+                            <ComboBoxItem Content="Number"/>
+                        </ComboBox>
+
+                        <!-- Sort Direction Toggle -->
+                        <Button Command="{Binding ToggleSortDirectionCommand}"
+                                Background="{StaticResource BorderColor}" BorderBrush="{StaticResource TextMuted}" BorderThickness="1"
+                                Padding="8,6" FontSize="11" Foreground="{StaticResource TextPrimary}" Width="28" Height="28">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{StaticResource TextMuted}"/>
+                                            <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <TextBlock Text="{Binding SortAscending}" FontFamily="Segoe MDL2 Assets">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="&#xE96E;"/> <!-- Sort up arrow -->
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SortAscending}" Value="False">
+                                                <Setter Property="Text" Value="&#xE96D;"/> <!-- Sort down arrow -->
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
             </Grid>
         </Border>
 
         <!-- Task List View -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      Padding="{Binding IsCompactView, Converter={x:Static local:BoolToPaddingConverter.Instance}}">
-            <ItemsControl ItemsSource="{Binding FilteredTasks}">
+        <Grid Grid.Row="1">
+            <!-- Flat View (ItemsControl) -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Padding="{Binding IsCompactView, Converter={x:Static local:BoolToPaddingConverter.Instance}}"
+                          Visibility="{Binding IsHierarchicalView, Converter={x:Static local:BoolToVisibilityConverter.Instance}, ConverterParameter=Inverse}">
+                <ItemsControl ItemsSource="{Binding FilteredTasks}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Vertical"/>
@@ -197,6 +374,7 @@
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                     <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
@@ -236,7 +414,7 @@
                                                                 </StackPanel>
 
                                                                 <!-- Status Badge -->
-                                                                <Border Grid.Column="2" Margin="0,0,12,0">
+                                                                <Border Grid.Column="2" Margin="0,0,8,0">
                                                                     <Border.Style>
                                                                         <Style TargetType="Border" BasedOn="{StaticResource StatusBadge}">
                                                                             <Style.Triggers>
@@ -285,8 +463,18 @@
                                                                     </TextBlock>
                                                                 </Border>
 
+                                                                <!-- Complexity Score -->
+                                                                <Border Grid.Column="3" CornerRadius="4" Padding="4,2" Margin="0,0,8,0"
+                                                                        Background="{Binding ComplexityScore, Converter={StaticResource ComplexityToColorConverter}}"
+                                                                        Visibility="{Binding ComplexityScore, Converter={StaticResource IntToVisibilityConverter}}">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="⚡" FontSize="11" Foreground="White" Margin="0,0,2,0"/>
+                                                                        <TextBlock Text="{Binding ComplexityScore}" FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                                                                    </StackPanel>
+                                                                </Border>
+
                                                                 <!-- Delete Button -->
-                                                                <Button Grid.Column="3" Content="✕" Panel.ZIndex="100"
+                                                                <Button Grid.Column="4" Content="✕" Panel.ZIndex="100"
                                                                         Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                         CommandParameter="{Binding}" Style="{StaticResource DeleteButton}"
                                                                         ToolTip="Delete task" Width="24" Height="24"/>
@@ -342,6 +530,7 @@
                                                                         <ColumnDefinition Width="*"/>    <!-- Title -->
                                                                         <ColumnDefinition Width="Auto"/> <!-- Type -->
                                                                         <ColumnDefinition Width="Auto"/> <!-- Status -->
+                                                                        <ColumnDefinition Width="Auto"/> <!-- Complexity -->
                                                                         <ColumnDefinition Width="Auto"/> <!-- Date -->
                                                                         <ColumnDefinition Width="Auto"/> <!-- Delete -->
                                                                     </Grid.ColumnDefinitions>
@@ -435,13 +624,23 @@
                                                                         </TextBlock>
                                                                     </Border>
 
+                                                                    <!-- Complexity Score -->
+                                                                    <Border Grid.Column="5" CornerRadius="3" Padding="3,1" Margin="0,0,8,0"
+                                                                            Background="{Binding ComplexityScore, Converter={StaticResource ComplexityToColorConverter}}"
+                                                                            Visibility="{Binding ComplexityScore, Converter={StaticResource IntToVisibilityConverter}}">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock Text="⚡" FontSize="10" Foreground="White" Margin="0,0,1,0"/>
+                                                                            <TextBlock Text="{Binding ComplexityScore}" FontSize="10" Foreground="White" FontWeight="SemiBold"/>
+                                                                        </StackPanel>
+                                                                    </Border>
+
                                                                     <!-- Date -->
-                                                                    <TextBlock Grid.Column="5" Text="{Binding Created, StringFormat='{}{0:MMM dd}'}"
+                                                                    <TextBlock Grid.Column="6" Text="{Binding Created, StringFormat='{}{0:MMM dd}'}"
                                                                                Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Medium"
                                                                                VerticalAlignment="Center" Margin="0,0,12,0"/>
 
                                                                     <!-- Delete Button -->
-                                                                    <Button Grid.Column="6" Content="✕" Panel.ZIndex="100"
+                                                                    <Button Grid.Column="7" Content="✕" Panel.ZIndex="100"
                                                                             Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                             CommandParameter="{Binding}" Style="{StaticResource DeleteButton}"
                                                                             Width="20" Height="20" FontSize="9"
@@ -460,7 +659,205 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-        </ScrollViewer>
+            </ScrollViewer>
+
+            <!-- Hierarchical View (TreeView) -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Padding="24"
+                          Visibility="{Binding IsHierarchicalView, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TreeView ItemsSource="{Binding FilteredHierarchicalTasks}" Background="Transparent" BorderThickness="0">
+                    <TreeView.Resources>
+                        <!-- TreeViewItem Style -->
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                            <Setter Property="Margin" Value="0,2"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="TreeViewItem">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Task Node Content -->
+                                            <Border Grid.Row="0" Background="{StaticResource CardBackground}"
+                                                    BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                                                    CornerRadius="8" Padding="16,12" Margin="0,2"
+                                                    MinHeight="80" Cursor="Hand">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                                                <Setter Property="Background" Value="#1F2937"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="*"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Header Row: Expand/Collapse, Number, Status -->
+                                                    <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,8">
+                                                        <!-- Expand/Collapse Button -->
+                                                        <ToggleButton IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                                                      Background="Transparent" BorderThickness="0"
+                                                                      Width="20" Height="20" Margin="0,0,8,0"
+                                                                      Visibility="{Binding HasChildren, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                            <ToggleButton.Style>
+                                                                <Style TargetType="ToggleButton">
+                                                                    <Setter Property="Content" Value="▶"/>
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter Property="Content" Value="▼"/>
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </ToggleButton.Style>
+                                                        </ToggleButton>
+
+                                                        <!-- Priority Indicator -->
+                                                        <Ellipse Style="{StaticResource PriorityIndicator}"
+                                                                 Fill="{Binding Task.Priority, Converter={StaticResource PriorityToColorConverter}}"/>
+
+                                                        <!-- Task Number -->
+                                                        <TextBlock Text="{Binding Task.Number}" Foreground="#A78BFA" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+                                                        <!-- Type Badge -->
+                                                        <Border Style="{StaticResource TypeBadge}" Margin="0,0,8,0">
+                                                            <TextBlock Foreground="{StaticResource TextSecondary}" FontSize="9" FontWeight="Medium">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Task.Type}" Value="feature">
+                                                                                <Setter Property="Text" Value="🚀"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Task.Type}" Value="bug">
+                                                                                <Setter Property="Text" Value="🐛"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Task.Type}" Value="enhancement">
+                                                                                <Setter Property="Text" Value="✨"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Task.Type}" Value="test">
+                                                                                <Setter Property="Text" Value="🧪"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Task.Type}" Value="refactor">
+                                                                                <Setter Property="Text" Value="🔧"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Border>
+
+                                                        <!-- Status Badge -->
+                                                        <Border>
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="CornerRadius" Value="8"/>
+                                                                    <Setter Property="Padding" Value="6,2"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Task.Status}" Value="Todo">
+                                                                            <Setter Property="Background" Value="#374151"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Task.Status}" Value="InProgress">
+                                                                            <Setter Property="Background" Value="#F59E0B"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Task.Status}" Value="Done">
+                                                                            <Setter Property="Background" Value="#10B981"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Task.Status}" Value="Cancelled">
+                                                                            <Setter Property="Background" Value="#EF4444"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Foreground="White" FontSize="9" FontWeight="SemiBold">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Task.Status}" Value="Todo">
+                                                                                <Setter Property="Text" Value="📝"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Task.Status}" Value="InProgress">
+                                                                                <Setter Property="Text" Value="⏳"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Task.Status}" Value="Done">
+                                                                                <Setter Property="Text" Value="✅"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Task.Status}" Value="Cancelled">
+                                                                                <Setter Property="Text" Value="❌"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Border>
+
+                                                        <!-- Complexity Score (if available) -->
+                                                        <Border CornerRadius="4" Padding="4,2" Margin="8,0,0,0"
+                                                                Background="{Binding Task.ComplexityScore, Converter={StaticResource ComplexityToColorConverter}}"
+                                                                Visibility="{Binding Task.ComplexityScore, Converter={StaticResource IntToVisibilityConverter}}">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="⚡" FontSize="11" Foreground="White" Margin="0,0,2,0"/>
+                                                                <TextBlock Text="{Binding Task.ComplexityScore}" FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </StackPanel>
+
+                                                    <!-- Title -->
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Task.Title}" FontWeight="SemiBold" FontSize="15"
+                                                               Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap" Margin="0,0,8,4">
+                                                        <TextBlock.InputBindings>
+                                                            <MouseBinding MouseAction="LeftClick"
+                                                                         Command="{Binding DataContext.SelectTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                         CommandParameter="{Binding Task}"/>
+                                                        </TextBlock.InputBindings>
+                                                    </TextBlock>
+
+                                                    <!-- Delete Button -->
+                                                    <Button Grid.Row="1" Grid.Column="1" Content="✕" Panel.ZIndex="100"
+                                                            Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding Task}" Style="{StaticResource DeleteButton}"
+                                                            ToolTip="Delete task" Width="20" Height="20" FontSize="8"
+                                                            VerticalAlignment="Top" HorizontalAlignment="Right"/>
+
+                                                    <!-- Summary -->
+                                                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding Task.Summary}" FontSize="12"
+                                                               Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" LineHeight="18"
+                                                               Margin="0,0,0,4">
+                                                        <TextBlock.InputBindings>
+                                                            <MouseBinding MouseAction="LeftClick"
+                                                                         Command="{Binding DataContext.SelectTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                         CommandParameter="{Binding Task}"/>
+                                                        </TextBlock.InputBindings>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Children -->
+                                            <ItemsPresenter Grid.Row="1" Margin="20,0,0,0"/>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </TreeView.Resources>
+                </TreeView>
+            </ScrollViewer>
+        </Grid>
 
         <!-- Pagination Footer -->
         <Border Grid.Row="2" Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,1,0,0" Padding="24,16">
@@ -550,9 +947,8 @@
 
                     <TextBlock Text="📄 Cards per page" VerticalAlignment="Center" Margin="0,0,8,0"
                                FontWeight="Medium" FontSize="12" Foreground="{StaticResource TextSecondary}"/>
-                    <ComboBox SelectedValue="{Binding PageSize}" SelectedValuePath="Content" Width="60" Height="28"
-                              Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" FontSize="11"
-                              Foreground="{StaticResource TextPrimary}" Padding="8,4">
+                    <ComboBox SelectedValue="{Binding PageSize}" SelectedValuePath="Content" Width="60" Height="32"
+                              Style="{StaticResource BeautifulComboBox}">
                         <ComboBoxItem Content="12"/>
                         <ComboBoxItem Content="24" IsSelected="True"/>
                         <ComboBoxItem Content="48"/>

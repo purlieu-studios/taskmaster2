@@ -497,5 +497,12 @@
                                 VerticalAlignment="Center"
                                 DataContext="{Binding NewTaskViewModel}"/>
         </Grid>
+
+        <!-- Decomposition Suggestion Overlay -->
+        <Grid x:Name="DecompositionOverlay"
+              Visibility="{Binding ShowDecompositionSuggestion, Converter={StaticResource BooleanToVisibilityConverter}}"
+              Panel.ZIndex="1100">
+            <views:DecompositionSuggestionDialog DataContext="{Binding}"/>
+        </Grid>
     </Grid>
 </Window>

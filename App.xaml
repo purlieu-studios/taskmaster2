@@ -7,6 +7,8 @@
         <ResourceDictionary>
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <converters:IntToVisibilityConverter x:Key="IntToVisibilityConverter"/>
+            <converters:ComplexityToColorConverter x:Key="ComplexityToColorConverter"/>
             <Style TargetType="TextBox">
                 <Setter Property="Padding" Value="5"/>
                 <Setter Property="Margin" Value="5"/>

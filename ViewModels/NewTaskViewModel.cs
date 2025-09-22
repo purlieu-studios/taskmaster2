@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
 using System.Threading;
+using System.Threading.Tasks;
 using TaskMaster.Models;
 using TaskMaster.Services;
 
@@ -29,7 +30,7 @@ public partial class NewTaskViewModel : ObservableObject
     [ObservableProperty]
     private bool _useAIEnhancement = true;
 
-    private System.Threading.CancellationTokenSource? _cancellationTokenSource;
+    private CancellationTokenSource? _cancellationTokenSource;
 
     public bool CanCreateTask => !string.IsNullOrWhiteSpace(TaskTitle) && SelectedProject != null && !IsGenerating;
 
@@ -91,11 +92,11 @@ public partial class NewTaskViewModel : ObservableObject
         LoggingService.LogInfo("AI generation cancelled by user", "NewTaskViewModel");
     }
 
-    public System.Threading.CancellationToken GetCancellationToken()
+    public CancellationToken GetCancellationToken()
     {
         _cancellationTokenSource?.Cancel();
         _cancellationTokenSource?.Dispose();
-        _cancellationTokenSource = new System.Threading.CancellationTokenSource();
+        _cancellationTokenSource = new CancellationTokenSource();
         return _cancellationTokenSource.Token;
     }
 }
