@@ -11,7 +11,14 @@
       "Bash(grep:*)",
       "Bash(tail:*)",
       "Bash(dotnet build)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(rm:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(dotnet run:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []

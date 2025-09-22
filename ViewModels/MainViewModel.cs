@@ -4,6 +4,7 @@ using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Threading;
 using System.Windows;
 using TaskMaster.Models;
 using TaskMaster.Services;
@@ -11,12 +12,14 @@ using TaskMaster.Views;
 
 namespace TaskMaster.ViewModels;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : EnhancedViewModelBase
 {
     private readonly DatabaseService _databaseService;
     private readonly ClaudeService _claudeService;
     private readonly SpecFileService _specFileService;
     private readonly PanelService _panelService;
+    private readonly TaskDecompositionService _taskDecompositionService;
+    private readonly ProjectContextService _projectContextService;
 
     [ObservableProperty]
     private ObservableCollection<Project> _projects = new();
@@ -88,7 +91,23 @@ public partial class MainViewModel : ObservableObject
     private int _panelRounds = 2;
 
     [ObservableProperty]
+    private bool _isNewTaskPopupVisible = false;
+
+    [ObservableProperty]
+    private NewTaskViewModel? _newTaskViewModel;
+
+    [ObservableProperty]
     private string _panelScope = "src/";
+
+    // Task Decomposition Properties
+    [ObservableProperty]
+    private TaskDecompositionSuggestion? _decompositionSuggestion;
+
+    [ObservableProperty]
+    private bool _showDecompositionSuggestion = false;
+
+    [ObservableProperty]
+    private bool _isAnalyzingComplexity = false;
 
     // Catalog Export Settings
     [ObservableProperty]
@@ -108,12 +127,49 @@ public partial class MainViewModel : ObservableObject
     private string _statusFilter = "All";
 
     [ObservableProperty]
+    private string _searchText = "";
+
+    [ObservableProperty]
     private bool _isTaskDetailPanelOpen = false;
 
     [ObservableProperty]
     private TaskDetailViewModel? _selectedTaskDetail;
 
+    // Project Settings Panel Properties
+    [ObservableProperty]
+    private bool _isProjectSettingsPanelOpen = false;
+
+    [ObservableProperty]
+    private int _filesAnalyzedCount = 0;
+
+    [ObservableProperty]
+    private DateTime? _lastAnalysisDate;
+
+    // Proxy property for project directory binding
+    public string? SelectedProjectDirectory
+    {
+        get => SelectedProject?.ProjectDirectory;
+        set
+        {
+            if (SelectedProject != null && SelectedProject.ProjectDirectory != value)
+            {
+                var oldValue = SelectedProject.ProjectDirectory;
+                SelectedProject.ProjectDirectory = value;
+
+                // Enhanced logging for this critical binding property
+                EnhancedLoggingService.LogPropertyChange(
+                    nameof(SelectedProjectDirectory),
+                    oldValue,
+                    value,
+                    "MainViewModel.ProxyBinding");
+
+                OnPropertyChanged(nameof(SelectedProjectDirectory));
+            }
+        }
+    }
+
     private ClaudeInferenceResponse? _lastInference;
+    private Project? _subscribedProject; // Track project for PropertyChanged subscription
 
     public MainViewModel()
     {
@@ -122,9 +178,12 @@ public partial class MainViewModel : ObservableObject
         _claudeService = new ClaudeService();
         _specFileService = new SpecFileService(_databaseService);
         _panelService = new PanelService(_claudeService, RepoRoot);
+        _taskDecompositionService = new TaskDecompositionService(_claudeService, _databaseService);
+        _projectContextService = new ProjectContextService(_databaseService);
 
         PropertyChanged += OnPropertyChanged;
         LoadProjectsAsync();
+        _ = CalculateExistingTaskComplexityAsync(); // Calculate complexity for existing tasks
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -176,6 +235,13 @@ public partial class MainViewModel : ObservableObject
             {
                 Projects.Add(project);
             }
+
+            // Auto-select the first project if any exist and none is currently selected
+            if (Projects.Any() && SelectedProject == null)
+            {
+                SelectedProject = Projects.First();
+                LoggingService.LogInfo($"Auto-selected first project: {SelectedProject.Name}", "MainViewModel");
+            }
         }
         catch (Exception ex)
         {
@@ -192,7 +258,7 @@ public partial class MainViewModel : ObservableObject
         {
             try
             {
-                var project = await _databaseService.CreateProjectAsync(dialog.ProjectName, dialog.ClaudeMdPath);
+                var project = await _databaseService.CreateProjectAsync(dialog.ProjectName, dialog.ProjectDirectory);
                 Projects.Add(project);
                 SelectedProject = project;
             }
@@ -216,7 +282,7 @@ public partial class MainViewModel : ObservableObject
             if (SelectedProject != null)
             {
                 SelectedProject.ClaudeMdPath = ClaudeMdPath;
-                UpdateProjectAsync();
+                _ = UpdateProjectAsync(); // Fire and forget - update in background
             }
         }
     }
@@ -271,7 +337,7 @@ public partial class MainViewModel : ObservableObject
             };
 
             InferenceStatus = "Calling Claude CLI...";
-            _lastInference = await _claudeService.InferSpecFieldsAsync(request);
+            _lastInference = await _claudeService.InferSpecFieldsAsync(request, CancellationToken.None);
 
             if (_lastInference != null)
             {
@@ -419,8 +485,16 @@ public partial class MainViewModel : ObservableObject
 
             LoggingService.LogInfo($"Created TaskSpec object for task #{taskNumber}", "MainViewModel");
 
+            // Calculate complexity score
+            var complexityScore = _taskDecompositionService.CalculateComplexityScore(taskSpec);
+            taskSpec.ComplexityScore = complexityScore;
+            LoggingService.LogInfo($"Calculated complexity score: {complexityScore}", "MainViewModel");
+
             var savedTaskSpec = await _databaseService.SaveTaskSpecAsync(taskSpec);
             LoggingService.LogInfo($"SaveTaskSpecAsync completed - Task ID: {savedTaskSpec.Id}", "MainViewModel");
+
+            // Check if task should be decomposed
+            await CheckAndOfferDecompositionAsync(savedTaskSpec);
 
             var filePath = await _specFileService.SaveSpecToFileAsync(taskSpec, SelectedProject, RepoRoot);
             LastSavedSpecPath = filePath;
@@ -791,7 +865,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    private async void UpdateProjectAsync()
+    private async Task UpdateProjectAsync()
     {
         if (SelectedProject != null)
         {
@@ -809,9 +883,35 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedProjectChanged(Project? value)
     {
-        if (value != null && !string.IsNullOrEmpty(value.ClaudeMdPath))
+        // Unsubscribe from old project
+        if (_subscribedProject != null)
         {
-            ClaudeMdPath = value.ClaudeMdPath;
+            _subscribedProject.PropertyChanged -= OnProjectPropertyChanged;
+        }
+
+        // Subscribe to new project
+        if (value != null)
+        {
+            value.PropertyChanged += OnProjectPropertyChanged;
+
+            if (!string.IsNullOrEmpty(value.ClaudeMdPath))
+            {
+                ClaudeMdPath = value.ClaudeMdPath;
+            }
+        }
+
+        _subscribedProject = value;
+
+        // Notify proxy property when SelectedProject changes
+        OnPropertyChanged(nameof(SelectedProjectDirectory));
+    }
+
+    private void OnProjectPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(Project.ProjectDirectory))
+        {
+            // Re-notify the proxy property when the underlying Project's ProjectDirectory changes
+            OnPropertyChanged(nameof(SelectedProjectDirectory));
         }
     }
 
@@ -868,27 +968,54 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ShowLogsCommand()
     {
+        LogCommandExecution(nameof(ShowLogsCommand));
+
         try
         {
-            var logPath = LoggingService.GetLogFilePath();
-            if (File.Exists(logPath))
+            var logViewerWindow = new LogViewerWindow
             {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = logPath,
-                    UseShellExecute = true
-                });
-            }
-            else
-            {
-                MessageBox.Show("Log file not found.", "File Not Found",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+                Owner = Application.Current.MainWindow
+            };
+
+            EnhancedLoggingService.LogInfo("Opening enhanced log viewer window", "MainViewModel");
+            logViewerWindow.Show();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to open log file: {ex.Message}", "Error",
+            EnhancedLoggingService.LogError("Failed to open log viewer window", ex, "MainViewModel");
+            MessageBox.Show($"Failed to open log viewer: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportDebugPackageCommand()
+    {
+        LogCommandExecution(nameof(ExportDebugPackageCommand));
+
+        try
+        {
+            var packagePath = await EnhancedLoggingService.ExportDebugPackageAsync();
+
+            MessageBox.Show($"Debug package created successfully!\n\nPath: {packagePath}\n\nThis package contains all logs, system information, and database snapshot for debugging assistance.",
+                "Debug Package Created", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            // Offer to open the folder
+            var result = MessageBox.Show("Would you like to open the folder containing the debug package?",
+                "Open Folder?", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{packagePath}\"");
+            }
+
+            EnhancedLoggingService.LogInfo($"Debug package exported: {packagePath}", "MainViewModel");
+        }
+        catch (Exception ex)
+        {
+            EnhancedLoggingService.LogError("Failed to export debug package", ex, "MainViewModel");
+            MessageBox.Show($"Failed to export debug package: {ex.Message}", "Export Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -972,44 +1099,151 @@ public partial class MainViewModel : ObservableObject
 
     // New Commands for the redesigned UI
     [RelayCommand]
-    private async Task NewTaskAsync()
+    private void ShowNewTaskPopup()
     {
+        if (NewTaskViewModel == null)
+        {
+            NewTaskViewModel = new NewTaskViewModel();
+        }
+
+        // Initialize popup with current projects
+        NewTaskViewModel.Projects.Clear();
+        foreach (var project in Projects)
+        {
+            NewTaskViewModel.Projects.Add(project);
+        }
+        NewTaskViewModel.SelectedProject = SelectedProject;
+        NewTaskViewModel.Reset();
+
+        IsNewTaskPopupVisible = true;
+    }
+
+    [RelayCommand]
+    private void CloseNewTaskPopup()
+    {
+        IsNewTaskPopupVisible = false;
+    }
+
+    [RelayCommand]
+    private async Task CreateTaskFromPopupAsync()
+    {
+        if (NewTaskViewModel == null || !NewTaskViewModel.CanCreateTask)
+            return;
+
         try
         {
-            var dialog = new NewTaskDialog();
-            dialog.Projects.Clear();
-            foreach (var project in Projects)
+            TaskSpec newTask;
+
+            // Check if AI enhancement is enabled
+            if (NewTaskViewModel.UseAIEnhancement)
             {
-                dialog.Projects.Add(project);
-            }
-            dialog.SelectedProject = SelectedProject;
+                // Set loading state and get cancellation token
+                NewTaskViewModel.IsGenerating = true;
+                var cancellationToken = NewTaskViewModel.GetCancellationToken();
 
-            if (dialog.ShowDialog() == true && dialog.CreatedTask != null)
-            {
-                var newTask = dialog.CreatedTask;
-
-                // Get the next task number for this project
-                var taskNumber = await _databaseService.GetNextTaskNumberAsync(newTask.ProjectId);
-                newTask.Number = taskNumber;
-
-                // Save the task immediately
-                var savedTask = await _databaseService.SaveTaskSpecAsync(newTask);
-
-                LoggingService.LogInfo($"Created new task #{savedTask.Number} - {savedTask.Title}", "MainViewModel");
-
-                // Open the task in the detail panel
-                await OpenTaskDetailAsync(savedTask);
-
-                // Refresh the task list if the project matches current selection
-                if (SelectedProject?.Id == savedTask.ProjectId)
+                try
                 {
-                    // Notify task list to refresh
-                    OnPropertyChanged(nameof(LastSavedSpecPath));
+                    LoggingService.LogInfo("Starting AI-enhanced task creation", "MainViewModel");
+
+                    // Create basic task spec for AI enhancement
+                    var basicTask = NewTaskViewModel.CreateTaskSpec();
+
+                    // Use ClaudeService to enhance the task with AI-generated content
+                    var enhancedTask = await _claudeService.EnhanceTaskSpecAsync(
+                        basicTask.Title,
+                        basicTask.Summary,
+                        basicTask.Type,
+                        SelectedProject?.Name ?? "Unknown Project",
+                        cancellationToken
+                    );
+
+                    // Check if operation was cancelled
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        LoggingService.LogInfo("AI enhancement was cancelled", "MainViewModel");
+                        return;
+                    }
+
+                    // Merge enhanced content with basic task
+                    newTask = basicTask;
+                    newTask.AcceptanceCriteria = enhancedTask.AcceptanceCriteria ?? "[]";
+                    newTask.TestPlan = enhancedTask.TestPlan ?? "[]";
+                    newTask.ScopePaths = enhancedTask.ScopePaths ?? "[]";
+                    newTask.RequiredDocs = enhancedTask.RequiredDocs ?? "[]";
+                    newTask.NonGoals = enhancedTask.NonGoals ?? "[]";
+                    newTask.Notes = enhancedTask.Notes ?? "[]";
+
+                    LoggingService.LogInfo("AI enhancement completed successfully", "MainViewModel");
                 }
+                catch (OperationCanceledException)
+                {
+                    LoggingService.LogInfo("AI enhancement was cancelled by user", "MainViewModel");
+                    return;
+                }
+                catch (Exception aiEx)
+                {
+                    LoggingService.LogWarning($"AI enhancement failed, proceeding with basic task: {aiEx.Message}", "MainViewModel");
+
+                    // Show user-friendly notification about AI failure
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"AI enhancement is unavailable: {aiEx.Message}\n\nCreating basic task instead.",
+                            "AI Enhancement Failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
+
+                    // Fall back to basic task if AI enhancement fails
+                    newTask = NewTaskViewModel.CreateTaskSpec();
+                }
+                finally
+                {
+                    // Clear loading state
+                    NewTaskViewModel.IsGenerating = false;
+                }
+            }
+            else
+            {
+                // Create basic task without AI enhancement
+                newTask = NewTaskViewModel.CreateTaskSpec();
+            }
+
+            // Get the next task number for this project
+            var taskNumber = await _databaseService.GetNextTaskNumberAsync(newTask.ProjectId);
+            newTask.Number = taskNumber;
+
+            // Calculate complexity score and check for decomposition
+            var complexityScore = _taskDecompositionService.CalculateComplexityScore(newTask);
+            newTask.ComplexityScore = complexityScore;
+
+            // Save the task immediately
+            var savedTask = await _databaseService.SaveTaskSpecAsync(newTask);
+
+            LoggingService.LogInfo($"Created new task #{savedTask.Number} - {savedTask.Title} (Complexity: {complexityScore})", "MainViewModel");
+
+            // Check if task should be decomposed
+            await CheckAndOfferDecompositionAsync(savedTask);
+
+            // Close the popup only if not showing decomposition suggestion
+            if (!ShowDecompositionSuggestion)
+            {
+                IsNewTaskPopupVisible = false;
+            }
+
+            // Open the task in the detail panel
+            await OpenTaskDetailAsync(savedTask);
+
+            // Refresh the task list if the project matches current selection
+            if (SelectedProject?.Id == savedTask.ProjectId)
+            {
+                // Notify task list to refresh
+                OnPropertyChanged(nameof(LastSavedSpecPath));
             }
         }
         catch (Exception ex)
         {
+            // Ensure loading state is cleared on any error
+            if (NewTaskViewModel != null)
+                NewTaskViewModel.IsGenerating = false;
+
             LoggingService.LogError("Failed to create new task", ex, "MainViewModel");
             MessageBox.Show($"Failed to create new task: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
@@ -1038,7 +1272,7 @@ public partial class MainViewModel : ObservableObject
         {
             if (SelectedTaskDetail == null)
             {
-                SelectedTaskDetail = new TaskDetailViewModel(_databaseService, _claudeService, _panelService, _specFileService);
+                SelectedTaskDetail = new TaskDetailViewModel(_databaseService, _claudeService, _panelService, _specFileService, _taskDecompositionService);
                 SelectedTaskDetail.TaskSaved += OnTaskSaved;
             }
 
@@ -1064,5 +1298,341 @@ public partial class MainViewModel : ObservableObject
         // Refresh the task list when a task is saved
         OnPropertyChanged(nameof(LastSavedSpecPath));
         LoggingService.LogInfo($"Task #{savedTask.Number} saved, refreshing task list", "MainViewModel");
+    }
+
+    // Task Decomposition Methods
+    private async Task CheckAndOfferDecompositionAsync(TaskSpec task)
+    {
+        try
+        {
+            IsAnalyzingComplexity = true;
+            LoggingService.LogInfo($"Analyzing complexity for task #{task.Number}", "MainViewModel");
+
+            var suggestion = await _taskDecompositionService.SuggestDecompositionAsync(task);
+
+            if (suggestion.ShouldDecompose)
+            {
+                DecompositionSuggestion = suggestion;
+                ShowDecompositionSuggestion = true;
+                LoggingService.LogInfo($"Offering decomposition for task #{task.Number} - {suggestion.Reason}", "MainViewModel");
+            }
+            else
+            {
+                LoggingService.LogInfo($"Task #{task.Number} does not need decomposition - {suggestion.Reason}", "MainViewModel");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to analyze complexity for task #{task.Number}", ex, "MainViewModel");
+        }
+        finally
+        {
+            IsAnalyzingComplexity = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task AcceptDecompositionAsync()
+    {
+        if (DecompositionSuggestion == null || DecompositionSuggestion.SuggestedSubtasks.Count == 0)
+            return;
+
+        try
+        {
+            LoggingService.LogInfo($"Creating {DecompositionSuggestion.SuggestedSubtasks.Count} subtasks", "MainViewModel");
+
+            // Find the parent task
+            var parentTask = SelectedTaskDetail?.OriginalTask;
+            if (parentTask == null)
+            {
+                LoggingService.LogError("No parent task found for decomposition", null, "MainViewModel");
+                return;
+            }
+
+            // Create subtasks using the decomposition service
+            var subtasks = await _taskDecompositionService.CreateSubtasksAsync(parentTask, DecompositionSuggestion.SuggestedSubtasks);
+
+            // Save all subtasks to database
+            foreach (var subtask in subtasks)
+            {
+                await _databaseService.SaveTaskSpecAsync(subtask);
+                LoggingService.LogInfo($"Created subtask #{subtask.Number} - {subtask.Title}", "MainViewModel");
+            }
+
+            // Update the parent task to mark it as decomposed
+            parentTask.IsDecomposed = true;
+            parentTask.DecompositionStrategy = DecompositionSuggestion.Strategy.ToString();
+            await _databaseService.SaveTaskSpecAsync(parentTask);
+
+            ShowDecompositionSuggestion = false;
+            DecompositionSuggestion = null;
+            IsNewTaskPopupVisible = false; // Close the popup now
+
+            LoggingService.LogInfo($"Successfully decomposed task #{parentTask.Number} into {subtasks.Count} subtasks", "MainViewModel");
+
+            // Refresh the task list to show the new hierarchy
+            if (SelectedProject?.Id == parentTask.ProjectId)
+            {
+                // Force a refresh of the task list
+                OnPropertyChanged(nameof(SelectedProject));
+            }
+
+            MessageBox.Show($"Successfully created {subtasks.Count} subtasks for '{parentTask.Title}'",
+                "Decomposition Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to create decomposed subtasks", ex, "MainViewModel");
+            MessageBox.Show($"Failed to create subtasks: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void RejectDecomposition()
+    {
+        LoggingService.LogInfo("User rejected task decomposition suggestion", "MainViewModel");
+        ShowDecompositionSuggestion = false;
+        DecompositionSuggestion = null;
+        IsNewTaskPopupVisible = false; // Close the popup now
+    }
+
+    [RelayCommand]
+    private void DismissDecompositionSuggestion()
+    {
+        ShowDecompositionSuggestion = false;
+        DecompositionSuggestion = null;
+    }
+
+    // Project Settings Panel Commands
+
+    [RelayCommand]
+    private void OpenProjectSettings()
+    {
+        if (SelectedProject == null)
+        {
+            MessageBox.Show("Please select a project first to access project settings.",
+                "No Project Selected", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Update analysis statistics from selected project
+        FilesAnalyzedCount = SelectedProject.FilesAnalyzedCount;
+        LastAnalysisDate = SelectedProject.LastAnalysisDate;
+
+        IsProjectSettingsPanelOpen = true;
+        LoggingService.LogInfo($"Opened project settings for {SelectedProject.Name}", "MainViewModel");
+    }
+
+    [RelayCommand]
+    private void CloseProjectSettings()
+    {
+        IsProjectSettingsPanelOpen = false;
+        LoggingService.LogInfo("Closed project settings panel", "MainViewModel");
+    }
+
+    [RelayCommand]
+    private async Task BrowseProjectDirectory()
+    {
+        LogCommandExecution(nameof(BrowseProjectDirectory), SelectedProject?.Name);
+
+        if (SelectedProject == null)
+        {
+            EnhancedLoggingService.LogWarning("BrowseProjectDirectory called with no selected project", "MainViewModel");
+            return;
+        }
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "Select project directory for analysis",
+            UseDescriptionForTitle = true,
+            ShowNewFolderButton = false,
+            SelectedPath = SelectedProject.ProjectDirectory ?? ""
+        };
+
+        EnhancedLoggingService.LogDebug($"Showing folder browser dialog with initial path: {SelectedProject.ProjectDirectory ?? "none"}", "MainViewModel");
+
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        {
+            // Ensure UI updates happen on the UI thread (though RelayCommand should already be on UI thread)
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                // Update both the model and the proxy property for binding
+                SelectedProjectDirectory = dialog.SelectedPath;
+
+                // Log the successful directory change
+                EnhancedLoggingService.LogInfo($"Project directory updated successfully: {dialog.SelectedPath}", "MainViewModel", new
+                {
+                    ProjectName = SelectedProject?.Name,
+                    NewPath = dialog.SelectedPath,
+                    OldPath = SelectedProject?.ProjectDirectory
+                });
+            });
+
+            // Persist changes to database immediately
+            await UpdateProjectAsync();
+
+            stopwatch.Stop();
+            LogPerformance("BrowseProjectDirectory", stopwatch.Elapsed, new
+            {
+                ProjectName = SelectedProject?.Name,
+                SelectedPath = dialog.SelectedPath
+            });
+        }
+        else
+        {
+            stopwatch.Stop();
+            EnhancedLoggingService.LogDebug("User cancelled folder browser dialog", "MainViewModel");
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshProjectAnalysisAsync()
+    {
+        if (SelectedProject?.ProjectDirectory == null) return;
+
+        try
+        {
+            LoggingService.LogInfo($"Starting project analysis refresh for {SelectedProject.Name}", "MainViewModel");
+
+            // Clear existing context for this project
+            await _databaseService.ClearProjectContextAsync(SelectedProject.Id);
+
+            // Perform analysis
+            var progress = new Progress<ProjectAnalysisProgress>(p =>
+            {
+                // Could show progress in UI if needed
+                LoggingService.LogInfo($"Analysis progress: {p.Phase} - {p.Progress}%", "MainViewModel");
+            });
+
+            var result = await _projectContextService.AnalyzeProjectDirectoryAsync(
+                SelectedProject.Id,
+                SelectedProject.ProjectDirectory,
+                progress);
+
+            // Update project statistics
+            SelectedProject.FilesAnalyzedCount = result.FilesAnalyzed;
+            SelectedProject.LastAnalysisDate = DateTime.UtcNow;
+            SelectedProject.LastDirectoryAnalysis = DateTime.UtcNow;
+
+            // Update UI properties
+            FilesAnalyzedCount = result.FilesAnalyzed;
+            LastAnalysisDate = SelectedProject.LastAnalysisDate;
+
+            // Save updated project to database
+            await _databaseService.UpdateProjectAsync(SelectedProject);
+
+            LoggingService.LogInfo($"Project analysis completed. Processed {result.FilesAnalyzed} files", "MainViewModel");
+
+            MessageBox.Show($"Analysis completed!\n\nProcessed: {result.FilesAnalyzed} files\nSkipped: {result.FilesSkipped} files",
+                           "Analysis Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to refresh project analysis for {SelectedProject.Name}", ex, "MainViewModel");
+            MessageBox.Show($"Analysis failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ClearProjectCacheAsync()
+    {
+        if (SelectedProject == null) return;
+
+        var result = MessageBox.Show(
+            $"Are you sure you want to clear all analyzed data for '{SelectedProject.Name}'?\n\nThis will remove all file analysis cache and require a fresh analysis.",
+            "Clear Project Cache",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await _databaseService.ClearProjectContextAsync(SelectedProject.Id);
+
+            // Reset statistics
+            SelectedProject.FilesAnalyzedCount = 0;
+            SelectedProject.LastAnalysisDate = null;
+            SelectedProject.LastDirectoryAnalysis = null;
+
+            // Update UI properties
+            FilesAnalyzedCount = 0;
+            LastAnalysisDate = null;
+
+            // Save updated project to database
+            await _databaseService.UpdateProjectAsync(SelectedProject);
+
+            LoggingService.LogInfo($"Cleared project cache for {SelectedProject.Name}", "MainViewModel");
+            MessageBox.Show("Project cache cleared successfully!", "Cache Cleared", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to clear project cache for {SelectedProject.Name}", ex, "MainViewModel");
+            MessageBox.Show($"Failed to clear cache: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveProjectChangesAsync()
+    {
+        if (SelectedProject == null) return;
+
+        try
+        {
+            await _databaseService.UpdateProjectAsync(SelectedProject);
+            LoggingService.LogInfo($"Saved project changes for {SelectedProject.Name}", "MainViewModel");
+            MessageBox.Show("Project changes saved successfully!", "Changes Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to save project changes for {SelectedProject.Name}", ex, "MainViewModel");
+            MessageBox.Show($"Failed to save changes: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Calculate complexity scores for existing tasks that don't have them
+    /// </summary>
+    private async Task CalculateExistingTaskComplexityAsync()
+    {
+        try
+        {
+            LoggingService.LogInfo("Starting to calculate complexity for existing tasks", "MainViewModel");
+
+            var projects = await _databaseService.GetProjectsAsync();
+
+            int totalUpdated = 0;
+            foreach (var project in projects)
+            {
+                var tasks = await _databaseService.GetTasksByProjectIdAsync(project.Id);
+                var tasksToUpdate = tasks.Where(t => t.ComplexityScore == 0).ToList();
+
+                foreach (var task in tasksToUpdate)
+                {
+                    var complexityScore = _taskDecompositionService.CalculateComplexityScore(task);
+                    task.ComplexityScore = complexityScore;
+                    await _databaseService.SaveTaskSpecAsync(task);
+                    totalUpdated++;
+
+                    LoggingService.LogInfo($"Updated task #{task.Number} complexity to {complexityScore}", "MainViewModel");
+                }
+            }
+
+            if (totalUpdated > 0)
+            {
+                LoggingService.LogInfo($"Calculated complexity for {totalUpdated} existing tasks", "MainViewModel");
+            }
+            else
+            {
+                LoggingService.LogInfo("All existing tasks already have complexity scores", "MainViewModel");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError("Failed to calculate existing task complexity", ex, "MainViewModel");
+        }
     }
 }

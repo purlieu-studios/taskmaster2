@@ -22,9 +22,8 @@ public partial class MainWindow : Window
         {
             _mainViewModel = mainViewModel;
 
-            // Create and assign TaskListViewModel to TaskListView
-            _taskListViewModel = new TaskListViewModel();
-            TaskListView.DataContext = _taskListViewModel;
+            // Get reference to TaskListView's ViewModel
+            _taskListViewModel = TaskListView.ViewModel;
 
             // Set up task selection handler
             _taskListViewModel.PropertyChanged += (s, args) =>
@@ -35,6 +34,12 @@ public partial class MainWindow : Window
                     // Open the selected task in the detail panel
                     _ = _mainViewModel.OpenTaskDetailAsync(_taskListViewModel.SelectedTask);
                 }
+            };
+
+            // Set up task selection handler via event
+            _taskListViewModel.TaskSelected += (s, task) =>
+            {
+                _ = _mainViewModel.OpenTaskDetailAsync(task);
             };
 
             // Handle task detail panel close event
@@ -68,6 +73,11 @@ public partial class MainWindow : Window
                     _taskListViewModel.TypeFilter = mainViewModel.TypeFilter;
                 }
 
+                if (args.PropertyName == nameof(MainViewModel.SearchText))
+                {
+                    _taskListViewModel.SearchText = mainViewModel.SearchText;
+                }
+
                 // Refresh task list when LastSavedSpecPath changes
                 if (args.PropertyName == nameof(MainViewModel.LastSavedSpecPath))
                 {
@@ -79,6 +89,7 @@ public partial class MainWindow : Window
             _taskListViewModel.SelectedProject = mainViewModel.SelectedProject;
             _taskListViewModel.StatusFilter = mainViewModel.StatusFilter;
             _taskListViewModel.TypeFilter = mainViewModel.TypeFilter;
+            _taskListViewModel.SearchText = mainViewModel.SearchText;
 
             TaskMaster.Services.LoggingService.LogInfo("MainWindow setup completed with new UI structure", "MainWindow");
         }

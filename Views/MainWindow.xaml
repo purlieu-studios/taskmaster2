@@ -3,9 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:TaskMaster.ViewModels"
         xmlns:views="clr-namespace:TaskMaster.Views"
+        xmlns:converters="clr-namespace:TaskMaster.Converters"
         Title="TaskMaster" Height="800" Width="1200"
         WindowStartupLocation="CenterScreen"
-        Background="#0A0E1B">
+        Background="#0F1419">
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
@@ -13,26 +14,36 @@
     <Window.Resources>
         <!-- Converters -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:BooleanNotNullConverter x:Key="BooleanNotNullConverter"/>
 
-        <!-- Gradient Brushes -->
-        <LinearGradientBrush x:Key="PurplePinkGradient" StartPoint="0,0" EndPoint="1,1">
+        <!-- Design System Colors -->
+        <SolidColorBrush x:Key="PrimaryBackground" Color="#0F1419"/>
+        <SolidColorBrush x:Key="CardBackground" Color="#1A1F2E"/>
+        <SolidColorBrush x:Key="ElevatedSurface" Color="#252A37"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#3A3F4B"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#F9FAFB"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#D1D5DB"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#9CA3AF"/>
+
+        <!-- Accent Colors -->
+        <LinearGradientBrush x:Key="PrimaryAccent" StartPoint="0,0" EndPoint="1,1">
             <GradientStop Color="#7C3AED" Offset="0"/>
             <GradientStop Color="#EC4899" Offset="1"/>
         </LinearGradientBrush>
 
-        <LinearGradientBrush x:Key="DarkSurfaceGradient" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#1A1F2E" Offset="0"/>
-            <GradientStop Color="#141925" Offset="1"/>
-        </LinearGradientBrush>
+        <!-- Standard Shadows -->
+        <DropShadowEffect x:Key="CardShadow" ShadowDepth="0" Color="#000000" Opacity="0.15" BlurRadius="12"/>
+        <DropShadowEffect x:Key="HoverShadow" ShadowDepth="0" Color="#7C3AED" Opacity="0.2" BlurRadius="24"/>
 
-        <!-- Sleek Button Style -->
-        <Style x:Key="SleekButton" TargetType="Button">
-            <Setter Property="Background" Value="#1F2937"/>
-            <Setter Property="Foreground" Value="#F9FAFB"/>
+        <!-- Secondary Button Style -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource ElevatedSurface}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#374151"/>
-            <Setter Property="Padding" Value="16,6"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -43,23 +54,19 @@
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="8">
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0" BlurRadius="8"/>
+                                <StaticResource ResourceKey="CardShadow"/>
                             </Border.Effect>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                             Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" TargetName="border" Value="#374151"/>
                                 <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
                                 <Setter Property="Effect" TargetName="border">
                                     <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.3" BlurRadius="12"/>
+                                        <StaticResource ResourceKey="HoverShadow"/>
                                     </Setter.Value>
                                 </Setter>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" TargetName="border" Value="#4B5563"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -67,13 +74,14 @@
             </Setter>
         </Style>
 
-        <!-- Primary Gradient Button -->
+        <!-- Primary Button Style -->
         <Style x:Key="PrimaryButton" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource PurplePinkGradient}"/>
+            <Setter Property="Background" Value="{StaticResource PrimaryAccent}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="20,8"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -82,7 +90,7 @@
                         <Border x:Name="border" Background="{TemplateBinding Background}"
                                 CornerRadius="8">
                             <Border.Effect>
-                                <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.4" BlurRadius="12"/>
+                                <StaticResource ResourceKey="HoverShadow"/>
                             </Border.Effect>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                             Margin="{TemplateBinding Padding}"/>
@@ -91,20 +99,7 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter Property="Effect" TargetName="border">
                                     <Setter.Value>
-                                        <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.6" BlurRadius="16"/>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="RenderTransform" TargetName="border">
-                                    <Setter.Value>
-                                        <ScaleTransform ScaleX="1.05" ScaleY="1.05"/>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="RenderTransformOrigin" TargetName="border" Value="0.5,0.5"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="RenderTransform" TargetName="border">
-                                    <Setter.Value>
-                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                                        <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.4" BlurRadius="24"/>
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
@@ -117,27 +112,25 @@
         <!-- Ghost Button Style -->
         <Style x:Key="GhostButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border" Background="{TemplateBinding Background}"
-                                CornerRadius="6">
+                                CornerRadius="8">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                             Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" TargetName="border" Value="#1F2937"/>
-                                <Setter Property="Foreground" Value="#F9FAFB"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" TargetName="border" Value="#374151"/>
+                                <Setter Property="Background" TargetName="border" Value="{StaticResource ElevatedSurface}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -145,14 +138,21 @@
             </Setter>
         </Style>
 
-        <!-- Beautiful ComboBox Style -->
+        <!-- Missing DarkSurfaceGradient Resource -->
+        <LinearGradientBrush x:Key="DarkSurfaceGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#1A1F2E" Offset="0"/>
+            <GradientStop Color="#252A37" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Beautiful ComboBox Style (moved from NewTaskPopup for consistency) -->
         <Style x:Key="BeautifulComboBox" TargetType="ComboBox">
-            <Setter Property="Background" Value="#1F2937"/>
-            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,2"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#F9FAFB"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
@@ -166,13 +166,13 @@
                                         <Border x:Name="border" Background="{TemplateBinding Background}"
                                                 BorderBrush="{TemplateBinding BorderBrush}"
                                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="4">
+                                                CornerRadius="8">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="16"/>
                                                 </Grid.ColumnDefinitions>
-                                                <Path x:Name="Arrow" Grid.Column="1" Fill="#9CA3AF" HorizontalAlignment="Center"
+                                                <Path x:Name="Arrow" Grid.Column="1" Fill="{StaticResource TextMuted}" HorizontalAlignment="Center"
                                                       VerticalAlignment="Center" Data="M 0 0 L 3 3 L 6 0 Z"/>
                                             </Grid>
                                         </Border>
@@ -194,10 +194,10 @@
                                    AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
                                 <Grid x:Name="DropDown" SnapsToDevicePixels="True"
                                       MinWidth="{TemplateBinding ActualWidth}" MaxHeight="200">
-                                    <Border x:Name="DropDownBorder" Background="#1F2937" BorderThickness="1"
-                                            BorderBrush="#374151" CornerRadius="4" Margin="0,2,0,0">
+                                    <Border x:Name="DropDownBorder" Background="{StaticResource CardBackground}" BorderThickness="1"
+                                            BorderBrush="{StaticResource BorderColor}" CornerRadius="8" Margin="0,2,0,0">
                                         <Border.Effect>
-                                            <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.3" BlurRadius="12"/>
+                                            <StaticResource ResourceKey="CardShadow"/>
                                         </Border.Effect>
                                         <ScrollViewer SnapsToDevicePixels="True">
                                             <StackPanel IsItemsHost="True"/>
@@ -218,9 +218,9 @@
                 <Setter.Value>
                     <Style TargetType="ComboBoxItem">
                         <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="Foreground" Value="#F9FAFB"/>
-                        <Setter Property="Padding" Value="8,4"/>
-                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                        <Setter Property="Padding" Value="12,8"/>
+                        <Setter Property="FontSize" Value="13"/>
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ComboBoxItem">
@@ -230,7 +230,7 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" TargetName="border" Value="#374151"/>
+                                            <Setter Property="Background" TargetName="border" Value="{StaticResource ElevatedSurface}"/>
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter Property="Background" TargetName="border" Value="#7C3AED"/>
@@ -243,20 +243,135 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Standard ComboBox Style -->
+        <Style x:Key="StandardComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton" Grid.Column="2"
+                                        Focusable="false" IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                        ClickMode="Press" Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Path x:Name="Arrow" Grid.Column="1" Fill="{StaticResource TextMuted}" HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" Data="M 0 0 L 3 3 L 6 0 Z"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                            Content="{TemplateBinding SelectionBoxItem}"
+                                            ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                            ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                            Margin="{TemplateBinding Padding}" VerticalAlignment="Center"
+                                            HorizontalAlignment="Left"/>
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid x:Name="DropDown" SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}" MaxHeight="200">
+                                    <Border x:Name="DropDownBorder" Background="{StaticResource CardBackground}" BorderThickness="1"
+                                            BorderBrush="{StaticResource BorderColor}" CornerRadius="8" Margin="0,2,0,0">
+                                        <Border.Effect>
+                                            <StaticResource ResourceKey="CardShadow"/>
+                                        </Border.Effect>
+                                        <ScrollViewer SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="#EC4899"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                        <Setter Property="Padding" Value="12,8"/>
+                        <Setter Property="FontSize" Value="14"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="border" Background="{TemplateBinding Background}"
+                                            Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" TargetName="border" Value="{StaticResource ElevatedSurface}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" TargetName="border" Value="#7C3AED"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Standard TextBox Style -->
+        <Style x:Key="StandardTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
     </Window.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+        <!-- Main Content Grid -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <!-- Beautiful Gradient Header -->
-        <Border Grid.Row="0" Background="{StaticResource DarkSurfaceGradient}"
-                BorderBrush="#374151" BorderThickness="0,0,0,1" Padding="24,16">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource CardBackground}"
+                BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1" Padding="24,16">
             <Border.Effect>
-                <DropShadowEffect ShadowDepth="2" Color="#000000" Opacity="0.1" BlurRadius="8"/>
+                <StaticResource ResourceKey="CardShadow"/>
             </Border.Effect>
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -274,65 +389,87 @@
                             </LinearGradientBrush>
                         </TextBlock.Foreground>
                     </TextBlock>
-                    <TextBlock Text="TaskMaster" FontSize="18" FontWeight="Bold"
-                               Foreground="{StaticResource PurplePinkGradient}" VerticalAlignment="Center"/>
+                    <TextBlock Text="TaskMaster" FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource PrimaryAccent}" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Content="✨ New Task" Command="{Binding NewTaskCommand}"
+                    <Button Content="New Task" Command="{Binding ShowNewTaskPopupCommand}"
                             Style="{StaticResource PrimaryButton}" Margin="0,0,12,0"/>
                     <Button Content="Export" Command="{Binding ExportCatalogCommand}"
-                            Style="{StaticResource SleekButton}" Margin="0,0,8,0"/>
+                            Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                     <Button Content="Import" Command="{Binding ImportTemplateCommand}"
-                            Style="{StaticResource GhostButton}"/>
+                            Style="{StaticResource GhostButton}" Margin="0,0,8,0"/>
+                    <Button Content="📊 Logs" Command="{Binding ShowLogsCommand}"
+                            Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                            ToolTip="View application logs and debugging information"/>
+                    <Button Content="📦 Debug" Command="{Binding ExportDebugPackageCommand}"
+                            Style="{StaticResource GhostButton}"
+                            ToolTip="Export debug package for troubleshooting"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Sleek Filter Section -->
-        <Border Grid.Row="1" Background="#141925" BorderBrush="#374151" BorderThickness="0,0,0,1" Padding="32,16">
+        <!-- Filter Section -->
+        <Border Grid.Row="1" Background="{StaticResource ElevatedSurface}" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1" Padding="24,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="240"/>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="200"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="140"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="140"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="120"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="Project" VerticalAlignment="Center" FontWeight="Medium"
-                           Margin="0,0,16,0" Foreground="#D1D5DB" FontSize="13"/>
-                <ComboBox Grid.Column="1" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
-                          DisplayMemberPath="Name" VerticalAlignment="Center" Margin="0,0,24,0"
-                          Height="24" Style="{StaticResource BeautifulComboBox}"/>
-                <Button Grid.Column="2" Content="+ Add" Command="{Binding CreateProjectCommand}"
-                        Style="{StaticResource GhostButton}" VerticalAlignment="Center" Margin="0,0,24,0"/>
+                <TextBlock Grid.Column="0" Text="Search" VerticalAlignment="Center" FontWeight="Medium"
+                           Margin="0,0,12,0" Foreground="{StaticResource TextSecondary}" FontSize="14"/>
+                <TextBox Grid.Column="1" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         VerticalAlignment="Center" Margin="0,0,24,0"
+                         Style="{StaticResource StandardTextBox}"/>
 
-                <TextBlock Grid.Column="3" Text="Type" VerticalAlignment="Center" FontWeight="Medium"
-                           Margin="0,0,16,0" Foreground="#D1D5DB" FontSize="13"/>
-                <ComboBox Grid.Column="4" SelectedValue="{Binding TypeFilter}" SelectedValuePath="Content"
-                          VerticalAlignment="Center" Margin="0,0,24,0" Height="24"
+                <TextBlock Grid.Column="2" Text="Project" VerticalAlignment="Center" FontWeight="Medium"
+                           Margin="0,0,12,0" Foreground="{StaticResource TextSecondary}" FontSize="14"/>
+                <ComboBox Grid.Column="3" ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}"
+                          DisplayMemberPath="Name" VerticalAlignment="Center" Margin="0,0,24,0"
+                          Style="{StaticResource StandardComboBox}"/>
+
+                <Button Grid.Column="4" Content="+ Add Project" Command="{Binding CreateProjectCommand}"
+                        Style="{StaticResource GhostButton}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                <Button Grid.Column="5" Content="⚙️ Settings" Command="{Binding OpenProjectSettingsCommand}"
+                        Style="{StaticResource GhostButton}" VerticalAlignment="Center" Margin="0,0,24,0"
+                        IsEnabled="{Binding SelectedProject, Converter={StaticResource BooleanNotNullConverter}}"
+                        ToolTip="Edit project settings and manage directory analysis"/>
+
+                <TextBlock Grid.Column="6" Text="Type" VerticalAlignment="Center" FontWeight="Medium"
+                           Margin="0,0,12,0" Foreground="{StaticResource TextSecondary}" FontSize="14"/>
+                <ComboBox Grid.Column="7" SelectedValue="{Binding TypeFilter}" SelectedValuePath="Tag"
+                          VerticalAlignment="Center" Margin="0,0,16,0" Height="36"
                           Style="{StaticResource BeautifulComboBox}">
-                    <ComboBoxItem Content="All" IsSelected="True"/>
-                    <ComboBoxItem Content="🚀 feature"/>
-                    <ComboBoxItem Content="🐛 bug"/>
-                    <ComboBoxItem Content="✨ enhancement"/>
-                    <ComboBoxItem Content="🧪 test"/>
+                    <ComboBoxItem Content="All" Tag="All" IsSelected="True"/>
+                    <ComboBoxItem Content="🚀 feature" Tag="feature"/>
+                    <ComboBoxItem Content="🐛 bug" Tag="bug"/>
+                    <ComboBoxItem Content="✨ enhancement" Tag="enhancement"/>
+                    <ComboBoxItem Content="🧪 test" Tag="test"/>
+                    <ComboBoxItem Content="🔧 refactor" Tag="refactor"/>
                 </ComboBox>
 
-                <TextBlock Grid.Column="5" Text="Status" VerticalAlignment="Center" FontWeight="Medium"
-                           Margin="0,0,16,0" Foreground="#D1D5DB" FontSize="13"/>
-                <ComboBox Grid.Column="6" SelectedValue="{Binding StatusFilter}" SelectedValuePath="Content"
-                          VerticalAlignment="Center" Height="24"
+                <TextBlock Grid.Column="8" Text="Status" VerticalAlignment="Center" FontWeight="Medium"
+                           Margin="0,0,12,0" Foreground="{StaticResource TextSecondary}" FontSize="14"/>
+                <ComboBox Grid.Column="9" SelectedValue="{Binding StatusFilter}" SelectedValuePath="Tag"
+                          VerticalAlignment="Center" Margin="0,0,16,0" Height="36"
                           Style="{StaticResource BeautifulComboBox}">
-                    <ComboBoxItem Content="All" IsSelected="True"/>
-                    <ComboBoxItem Content="📝 Todo"/>
-                    <ComboBoxItem Content="⏳ InProgress"/>
-                    <ComboBoxItem Content="✅ Done"/>
-                    <ComboBoxItem Content="❌ Cancelled"/>
+                    <ComboBoxItem Content="All" Tag="All" IsSelected="True"/>
+                    <ComboBoxItem Content="📝 Todo" Tag="Todo"/>
+                    <ComboBoxItem Content="⏳ InProgress" Tag="InProgress"/>
+                    <ComboBoxItem Content="✅ Done" Tag="Done"/>
+                    <ComboBoxItem Content="❌ Cancelled" Tag="Cancelled"/>
                 </ComboBox>
             </Grid>
         </Border>
@@ -341,6 +478,7 @@
         <Grid Grid.Row="2" Background="#0A0E1B">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
@@ -356,9 +494,59 @@
 
             <!-- Task Detail Side Panel -->
             <views:TaskDetailPanel Grid.Column="1" x:Name="TaskDetailPanel"
-                                   Width="450" Margin="16,20,32,32"
+                                   Width="450" Margin="16,20,16,32"
                                    Visibility="{Binding IsTaskDetailPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
                                    DataContext="{Binding SelectedTaskDetail}"/>
+
+            <!-- Project Settings Side Panel -->
+            <views:ProjectSettingsPanel Grid.Column="2" x:Name="ProjectSettingsPanel"
+                                        Width="450" Margin="16,20,32,32"
+                                        Visibility="{Binding IsProjectSettingsPanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        DataContext="{Binding}">
+                <views:ProjectSettingsPanel.RenderTransform>
+                    <TranslateTransform/>
+                </views:ProjectSettingsPanel.RenderTransform>
+                <views:ProjectSettingsPanel.Triggers>
+                    <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.X"
+                                               From="450" To="0"
+                                               Duration="0:0:0.3">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                               From="0" To="1"
+                                               Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                </views:ProjectSettingsPanel.Triggers>
+            </views:ProjectSettingsPanel>
+        </Grid>
+        </Grid>
+
+        <!-- New Task Popup Overlay -->
+        <Grid x:Name="PopupOverlay" Background="#80000000"
+              Visibility="{Binding IsNewTaskPopupVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+              Panel.ZIndex="1000">
+            <Grid.InputBindings>
+                <MouseBinding MouseAction="LeftClick" Command="{Binding CloseNewTaskPopupCommand}"/>
+            </Grid.InputBindings>
+
+            <views:NewTaskPopup x:Name="NewTaskPopup"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                DataContext="{Binding NewTaskViewModel}"/>
+        </Grid>
+
+        <!-- Decomposition Suggestion Overlay -->
+        <Grid x:Name="DecompositionOverlay"
+              Visibility="{Binding ShowDecompositionSuggestion, Converter={StaticResource BooleanToVisibilityConverter}}"
+              Panel.ZIndex="1100">
+            <views:DecompositionSuggestionDialog DataContext="{Binding}"/>
         </Grid>
     </Grid>
 </Window>
