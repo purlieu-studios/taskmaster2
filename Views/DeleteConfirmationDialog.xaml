@@ -8,11 +8,26 @@
         WindowStyle="None"
         AllowsTransparency="True">
 
+    <Window.Resources>
+        <!-- Design System Colors (consistent with MainWindow) -->
+        <SolidColorBrush x:Key="PrimaryBackground" Color="#0F1419"/>
+        <SolidColorBrush x:Key="CardBackground" Color="#1A1F2E"/>
+        <SolidColorBrush x:Key="ElevatedSurface" Color="#252A37"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#3A3F4B"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#F9FAFB"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#D1D5DB"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#9CA3AF"/>
+
+        <!-- Standard Shadows -->
+        <DropShadowEffect x:Key="CardShadow" ShadowDepth="0" Color="#000000" Opacity="0.15" BlurRadius="12"/>
+        <DropShadowEffect x:Key="HoverShadow" ShadowDepth="0" Color="#7C3AED" Opacity="0.2" BlurRadius="24"/>
+    </Window.Resources>
+
     <Window.Effect>
-        <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.4" BlurRadius="20"/>
+        <StaticResource ResourceKey="HoverShadow"/>
     </Window.Effect>
 
-    <Border Background="#1A1F2E" BorderBrush="#374151" BorderThickness="1" CornerRadius="12">
+    <Border Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="12">
         <Grid Margin="32">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -24,28 +39,30 @@
 
             <!-- Warning Icon and Title -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
-                <Ellipse Width="48" Height="48" Fill="#EF4444" Margin="0,0,16,0">
-                    <Ellipse.Effect>
-                        <DropShadowEffect ShadowDepth="0" Color="#EF4444" Opacity="0.3" BlurRadius="12"/>
-                    </Ellipse.Effect>
-                </Ellipse>
-                <TextBlock Text="⚠" FontSize="28" Foreground="White" VerticalAlignment="Center"
-                           HorizontalAlignment="Center" Margin="-44,0,28,0"/>
+                <Grid Width="48" Height="48" Margin="0,0,16,0">
+                    <Ellipse Width="48" Height="48" Fill="#EF4444">
+                        <Ellipse.Effect>
+                            <DropShadowEffect ShadowDepth="0" Color="#EF4444" Opacity="0.3" BlurRadius="12"/>
+                        </Ellipse.Effect>
+                    </Ellipse>
+                    <TextBlock Text="⚠" FontSize="28" Foreground="White"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
                 <TextBlock Text="Delete Task" FontSize="24" FontWeight="Bold"
-                           Foreground="#F9FAFB" VerticalAlignment="Center"/>
+                           Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
             </StackPanel>
 
             <!-- Confirmation Message -->
-            <TextBlock Grid.Row="1" FontSize="16" Foreground="#D1D5DB"
+            <TextBlock Grid.Row="1" FontSize="16" Foreground="{StaticResource TextSecondary}"
                        TextAlignment="Center" Margin="0,0,0,24" TextWrapping="Wrap">
                 Are you sure you want to delete this task? This action cannot be undone.
             </TextBlock>
 
             <!-- Task Preview Card -->
-            <Border Grid.Row="2" Background="#111827" BorderBrush="#374151" BorderThickness="1"
+            <Border Grid.Row="2" Background="{StaticResource ElevatedSurface}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
                     CornerRadius="8" Padding="20" Margin="0,0,0,24">
                 <Border.Effect>
-                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.2" BlurRadius="4"/>
+                    <StaticResource ResourceKey="CardShadow"/>
                 </Border.Effect>
                 <Grid>
                     <Grid.RowDefinitions>
@@ -56,17 +73,17 @@
 
                     <!-- Task Number and Title -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                        <Border Background="#374151" CornerRadius="4" Padding="6,3" Margin="0,0,12,0">
+                        <Border Background="{StaticResource BorderColor}" CornerRadius="4" Padding="6,3" Margin="0,0,12,0">
                             <TextBlock x:Name="TaskNumberText" Text="#0" FontSize="12"
-                                       FontWeight="Bold" Foreground="#D1D5DB"/>
+                                       FontWeight="Bold" Foreground="{StaticResource TextSecondary}"/>
                         </Border>
                         <TextBlock x:Name="TaskTitleText" Text="Task Title" FontSize="16"
-                                   FontWeight="SemiBold" Foreground="#F9FAFB" TextTrimming="CharacterEllipsis"/>
+                                   FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
 
                     <!-- Task Summary -->
                     <TextBlock Grid.Row="1" x:Name="TaskSummaryText" Text="Task Summary"
-                               FontSize="14" Foreground="#9CA3AF" TextWrapping="Wrap"
+                               FontSize="14" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap"
                                MaxHeight="60" TextTrimming="CharacterEllipsis"/>
                 </Grid>
             </Border>
@@ -77,33 +94,37 @@
                         Margin="0,0,12,0" Click="CancelButton_Click">
                     <Button.Style>
                         <Style TargetType="Button">
-                            <Setter Property="Background" Value="#374151"/>
-                            <Setter Property="Foreground" Value="#F9FAFB"/>
+                            <Setter Property="Background" Value="{StaticResource ElevatedSurface}"/>
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                             <Setter Property="BorderThickness" Value="1"/>
-                            <Setter Property="BorderBrush" Value="#6B7280"/>
+                            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}"
+                                        <Border x:Name="border" Background="{TemplateBinding Background}"
                                                 BorderBrush="{TemplateBinding BorderBrush}"
                                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                            <Border.Effect>
+                                                <StaticResource ResourceKey="CardShadow"/>
+                                            </Border.Effect>
                                             <ContentPresenter HorizontalAlignment="Center"
                                                               VerticalAlignment="Center"/>
                                         </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
+                                                <Setter Property="Effect" TargetName="border">
+                                                    <Setter.Value>
+                                                        <StaticResource ResourceKey="HoverShadow"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
-                            <Style.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#4B5563"/>
-                                    <Setter Property="BorderBrush" Value="#9CA3AF"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter Property="Background" Value="#6B7280"/>
-                                </Trigger>
-                            </Style.Triggers>
                         </Style>
                     </Button.Style>
                 </Button>
@@ -119,28 +140,33 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}"
+                                        <Border x:Name="border" Background="{TemplateBinding Background}"
                                                 BorderBrush="{TemplateBinding BorderBrush}"
                                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                CornerRadius="8" Padding="{TemplateBinding Padding}">
                                             <Border.Effect>
                                                 <DropShadowEffect ShadowDepth="0" Color="#EF4444"
-                                                                  Opacity="0.3" BlurRadius="8"/>
+                                                                  Opacity="0.3" BlurRadius="12"/>
                                             </Border.Effect>
                                             <ContentPresenter HorizontalAlignment="Center"
                                                               VerticalAlignment="Center"/>
                                         </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" TargetName="border" Value="#DC2626"/>
+                                                <Setter Property="Effect" TargetName="border">
+                                                    <Setter.Value>
+                                                        <DropShadowEffect ShadowDepth="0" Color="#EF4444" Opacity="0.5" BlurRadius="16"/>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter Property="Background" TargetName="border" Value="#B91C1C"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
-                            <Style.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#DC2626"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter Property="Background" Value="#B91C1C"/>
-                                </Trigger>
-                            </Style.Triggers>
                         </Style>
                     </Button.Style>
                 </Button>

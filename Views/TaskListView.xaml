@@ -9,10 +9,20 @@
         <!-- Converters -->
         <converters:PriorityToColorConverter x:Key="PriorityToColorConverter"/>
 
+        <!-- Design System Resources (consistent with MainWindow) -->
+        <SolidColorBrush x:Key="CardBackground" Color="#1A1F2E"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#3A3F4B"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#F9FAFB"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#D1D5DB"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#9CA3AF"/>
+
+        <DropShadowEffect x:Key="CardShadow" ShadowDepth="0" Color="#000000" Opacity="0.15" BlurRadius="12"/>
+        <DropShadowEffect x:Key="HoverShadow" ShadowDepth="0" Color="#7C3AED" Opacity="0.2" BlurRadius="24"/>
+
         <!-- Task Card Style -->
         <Style x:Key="TaskCard" TargetType="Border">
-            <Setter Property="Background" Value="#1A1F2E"/>
-            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="24"/>
@@ -21,7 +31,7 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.2" BlurRadius="8"/>
+                    <StaticResource ResourceKey="CardShadow"/>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
@@ -29,7 +39,7 @@
                     <Setter Property="BorderBrush" Value="#7C3AED"/>
                     <Setter Property="Effect">
                         <Setter.Value>
-                            <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.3" BlurRadius="16"/>
+                            <StaticResource ResourceKey="HoverShadow"/>
                         </Setter.Value>
                     </Setter>
                     <Setter Property="RenderTransform">
@@ -51,7 +61,7 @@
 
         <!-- Type Badge Style -->
         <Style x:Key="TypeBadge" TargetType="Border">
-            <Setter Property="Background" Value="#374151"/>
+            <Setter Property="Background" Value="{StaticResource BorderColor}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="6,3"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
@@ -59,14 +69,14 @@
 
         <!-- Compact Row Style -->
         <Style x:Key="CompactRow" TargetType="Border">
-            <Setter Property="Background" Value="#1A1F2E"/>
-            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="Padding" Value="16,12"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#374151"/>
+                    <Setter Property="Background" Value="{StaticResource BorderColor}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -119,7 +129,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header with View Toggle -->
-        <Border Grid.Row="0" Background="#1A1F2E" BorderBrush="#374151" BorderThickness="0,0,0,1" Padding="24,12">
+        <Border Grid.Row="0" Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1" Padding="24,12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -127,16 +137,16 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0" Text="Task List" FontSize="18" FontWeight="SemiBold"
-                           Foreground="#F9FAFB" VerticalAlignment="Center"/>
+                           Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
 
                 <Button Grid.Column="1" Command="{Binding ToggleViewCommand}"
-                        Background="#374151" BorderBrush="#6B7280" BorderThickness="1"
-                        Padding="12,6" FontSize="12" Foreground="#F9FAFB">
+                        Background="{StaticResource BorderColor}" BorderBrush="{StaticResource TextMuted}" BorderThickness="1"
+                        Padding="12,6" FontSize="12" Foreground="{StaticResource TextPrimary}">
                     <Button.Style>
                         <Style TargetType="Button">
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#4B5563"/>
+                                    <Setter Property="Background" Value="{StaticResource TextMuted}"/>
                                     <Setter Property="BorderBrush" Value="#7C3AED"/>
                                 </Trigger>
                             </Style.Triggers>
@@ -199,7 +209,7 @@
                                                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                                                                     <TextBlock Text="{Binding Number}" Foreground="#A78BFA" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
                                                                     <Border Style="{StaticResource TypeBadge}" Margin="12,0,0,0">
-                                                                        <TextBlock Foreground="#D1D5DB" FontSize="10" FontWeight="Medium">
+                                                                        <TextBlock Foreground="{StaticResource TextSecondary}" FontSize="10" FontWeight="Medium">
                                                                             <TextBlock.Style>
                                                                                 <Style TargetType="TextBlock">
                                                                                     <Style.Triggers>
@@ -226,7 +236,7 @@
                                                                 </StackPanel>
 
                                                                 <!-- Status Badge -->
-                                                                <Border Grid.Column="2">
+                                                                <Border Grid.Column="2" Margin="0,0,12,0">
                                                                     <Border.Style>
                                                                         <Style TargetType="Border" BasedOn="{StaticResource StatusBadge}">
                                                                             <Style.Triggers>
@@ -284,7 +294,7 @@
 
                                                             <!-- Title Row (clickable for selection) -->
                                                             <TextBlock Grid.Row="1" Text="{Binding Title}" FontWeight="SemiBold" FontSize="18"
-                                                                       Foreground="#F9FAFB" TextWrapping="Wrap"
+                                                                       Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap"
                                                                        Margin="0,0,0,8" LineHeight="24" Cursor="Hand">
                                                                 <TextBlock.InputBindings>
                                                                     <MouseBinding MouseAction="LeftClick"
@@ -294,7 +304,7 @@
                                                             </TextBlock>
 
                                                             <!-- Summary Row (clickable for selection) -->
-                                                            <TextBlock Grid.Row="2" Text="{Binding Summary}" FontSize="13" Foreground="#9CA3AF"
+                                                            <TextBlock Grid.Row="2" Text="{Binding Summary}" FontSize="13" Foreground="{StaticResource TextMuted}"
                                                                        TextWrapping="Wrap" LineHeight="20"
                                                                        Margin="0,0,0,16" VerticalAlignment="Top" Cursor="Hand">
                                                                 <TextBlock.InputBindings>
@@ -345,7 +355,7 @@
 
                                                                     <!-- Title (clickable) -->
                                                                     <TextBlock Grid.Column="2" Text="{Binding Title}" FontWeight="Medium" FontSize="14"
-                                                                               Foreground="#F9FAFB" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                                               Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                                Margin="0,0,12,0" Cursor="Hand">
                                                                         <TextBlock.InputBindings>
                                                                             <MouseBinding MouseAction="LeftClick"
@@ -356,7 +366,7 @@
 
                                                                     <!-- Type Badge -->
                                                                     <Border Grid.Column="3" Style="{StaticResource TypeBadge}" Margin="0,0,12,0">
-                                                                        <TextBlock Foreground="#D1D5DB" FontSize="9" FontWeight="Medium">
+                                                                        <TextBlock Foreground="{StaticResource TextSecondary}" FontSize="9" FontWeight="Medium">
                                                                             <TextBlock.Style>
                                                                                 <Style TargetType="TextBlock">
                                                                                     <Style.Triggers>
@@ -427,7 +437,7 @@
 
                                                                     <!-- Date -->
                                                                     <TextBlock Grid.Column="5" Text="{Binding Created, StringFormat='{}{0:MMM dd}'}"
-                                                                               Foreground="#6B7280" FontSize="11" FontWeight="Medium"
+                                                                               Foreground="{StaticResource TextMuted}" FontSize="11" FontWeight="Medium"
                                                                                VerticalAlignment="Center" Margin="0,0,12,0"/>
 
                                                                     <!-- Delete Button -->
@@ -453,7 +463,7 @@
         </ScrollViewer>
 
         <!-- Pagination Footer -->
-        <Border Grid.Row="2" Background="#1A1F2E" BorderBrush="#374151" BorderThickness="0,1,0,0" Padding="24,16">
+        <Border Grid.Row="2" Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,1,0,0" Padding="24,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -463,20 +473,20 @@
 
                 <!-- Task Count -->
                 <TextBlock Grid.Column="0" Text="{Binding TaskCountText}" VerticalAlignment="Center"
-                           FontWeight="Medium" FontSize="13" Foreground="#F9FAFB"/>
+                           FontWeight="Medium" FontSize="14" Foreground="{StaticResource TextPrimary}"/>
 
                 <!-- Pagination Controls -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="⏮️" Command="{Binding FirstPageCommand}"
-                            Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontWeight="Normal"
-                            FontSize="12" Foreground="#9CA3AF" Width="32" Height="28" Margin="0,0,4,0">
+                            Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" FontWeight="Normal"
+                            FontSize="12" Foreground="{StaticResource TextMuted}" Width="32" Height="28" Margin="0,0,4,0">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#374151"/>
+                                        <Setter Property="Background" Value="{StaticResource BorderColor}"/>
                                         <Setter Property="BorderBrush" Value="#7C3AED"/>
-                                        <Setter Property="Foreground" Value="#F9FAFB"/>
+                                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -484,15 +494,15 @@
                     </Button>
 
                     <Button Content="◀️" Command="{Binding PreviousPageCommand}"
-                            Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontWeight="Normal"
-                            FontSize="12" Foreground="#9CA3AF" Width="32" Height="28" Margin="0,0,8,0">
+                            Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" FontWeight="Normal"
+                            FontSize="12" Foreground="{StaticResource TextMuted}" Width="32" Height="28" Margin="0,0,8,0">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#374151"/>
+                                        <Setter Property="Background" Value="{StaticResource BorderColor}"/>
                                         <Setter Property="BorderBrush" Value="#7C3AED"/>
-                                        <Setter Property="Foreground" Value="#F9FAFB"/>
+                                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -500,22 +510,22 @@
                     </Button>
 
                     <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center" Margin="0,0,6,0"
-                               FontSize="12" Foreground="#F9FAFB" FontWeight="Medium"/>
+                               FontSize="12" Foreground="{StaticResource TextPrimary}" FontWeight="Medium"/>
                     <TextBlock Text="of" VerticalAlignment="Center" Margin="0,0,6,0"
-                               FontSize="12" Foreground="#D1D5DB"/>
+                               FontSize="12" Foreground="{StaticResource TextSecondary}"/>
                     <TextBlock Text="{Binding TotalPages}" VerticalAlignment="Center" Margin="0,0,12,0"
-                               FontSize="12" Foreground="#F9FAFB" FontWeight="Medium"/>
+                               FontSize="12" Foreground="{StaticResource TextPrimary}" FontWeight="Medium"/>
 
                     <Button Content="▶️" Command="{Binding NextPageCommand}"
-                            Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontWeight="Normal"
-                            FontSize="12" Foreground="#9CA3AF" Width="32" Height="28" Margin="0,0,4,0">
+                            Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" FontWeight="Normal"
+                            FontSize="12" Foreground="{StaticResource TextMuted}" Width="32" Height="28" Margin="0,0,4,0">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#374151"/>
+                                        <Setter Property="Background" Value="{StaticResource BorderColor}"/>
                                         <Setter Property="BorderBrush" Value="#7C3AED"/>
-                                        <Setter Property="Foreground" Value="#F9FAFB"/>
+                                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -523,15 +533,15 @@
                     </Button>
 
                     <Button Content="⏭️" Command="{Binding LastPageCommand}"
-                            Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontWeight="Normal"
-                            FontSize="12" Foreground="#9CA3AF" Width="32" Height="28" Margin="0,0,16,0">
+                            Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" FontWeight="Normal"
+                            FontSize="12" Foreground="{StaticResource TextMuted}" Width="32" Height="28" Margin="0,0,16,0">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#374151"/>
+                                        <Setter Property="Background" Value="{StaticResource BorderColor}"/>
                                         <Setter Property="BorderBrush" Value="#7C3AED"/>
-                                        <Setter Property="Foreground" Value="#F9FAFB"/>
+                                        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -539,10 +549,10 @@
                     </Button>
 
                     <TextBlock Text="📄 Cards per page" VerticalAlignment="Center" Margin="0,0,8,0"
-                               FontWeight="Medium" FontSize="11" Foreground="#D1D5DB"/>
+                               FontWeight="Medium" FontSize="12" Foreground="{StaticResource TextSecondary}"/>
                     <ComboBox SelectedValue="{Binding PageSize}" SelectedValuePath="Content" Width="60" Height="28"
-                              Background="#1F2937" BorderBrush="#374151" BorderThickness="1" FontSize="11"
-                              Foreground="#F9FAFB" Padding="8,4">
+                              Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" FontSize="11"
+                              Foreground="{StaticResource TextPrimary}" Padding="8,4">
                         <ComboBoxItem Content="12"/>
                         <ComboBoxItem Content="24" IsSelected="True"/>
                         <ComboBoxItem Content="48"/>
