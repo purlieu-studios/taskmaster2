@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Threading;
 using System.Windows;
 using TaskMaster.Models;
 using TaskMaster.Services;
@@ -12,6 +13,7 @@ public partial class TaskDetailViewModel : ObservableObject
     private readonly ClaudeService _claudeService;
     private readonly PanelService _panelService;
     private readonly SpecFileService _specFileService;
+    private readonly TaskDecompositionService _taskDecompositionService;
 
     [ObservableProperty]
     private TaskSpec? _originalTask;
@@ -56,12 +58,14 @@ public partial class TaskDetailViewModel : ObservableObject
     private bool _isInferring;
 
     public TaskDetailViewModel(DatabaseService databaseService, ClaudeService claudeService,
-                              PanelService panelService, SpecFileService specFileService)
+                              PanelService panelService, SpecFileService specFileService,
+                              TaskDecompositionService taskDecompositionService)
     {
         _databaseService = databaseService;
         _claudeService = claudeService;
         _panelService = panelService;
         _specFileService = specFileService;
+        _taskDecompositionService = taskDecompositionService;
     }
 
     public void LoadTask(TaskSpec task)
@@ -162,7 +166,7 @@ public partial class TaskDetailViewModel : ObservableObject
                 ClaudeMdContent = "", // Will need to get this from somewhere
                 RecentTasks = new List<TaskSpec>()
             };
-            var inferredFields = await _claudeService.InferSpecFieldsAsync(request);
+            var inferredFields = await _claudeService.InferSpecFieldsAsync(request, CancellationToken.None);
 
             if (inferredFields != null)
             {
@@ -233,6 +237,73 @@ public partial class TaskDetailViewModel : ObservableObject
         catch (Exception ex)
         {
             LoggingService.LogError($"Failed to run update for task #{Number}", ex, "TaskDetailViewModel");
+        }
+    }
+
+    [RelayCommand]
+    private async Task SuggestDecompositionAsync()
+    {
+        if (OriginalTask == null) return;
+
+        try
+        {
+            LoggingService.LogInfo($"Manual decomposition requested for task #{OriginalTask.Number}", "TaskDetailViewModel");
+
+            // Calculate complexity and get decomposition suggestion
+            var suggestion = await _taskDecompositionService.SuggestDecompositionAsync(OriginalTask);
+
+            if (suggestion.ShouldDecompose)
+            {
+                var result = MessageBox.Show(
+                    $"Task complexity: {suggestion.ComplexityScore}/100\n\n" +
+                    $"Strategy: {suggestion.Strategy}\n" +
+                    $"Suggested subtasks: {suggestion.SuggestedSubtasks.Count}\n\n" +
+                    $"Reason: {suggestion.Reason}\n\n" +
+                    "Would you like to create the suggested subtasks?",
+                    "Task Decomposition Suggestion",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Create subtasks
+                    var subtasks = await _taskDecompositionService.CreateSubtasksAsync(OriginalTask, suggestion.SuggestedSubtasks);
+
+                    // Save all subtasks
+                    foreach (var subtask in subtasks)
+                    {
+                        await _databaseService.SaveTaskSpecAsync(subtask);
+                    }
+
+                    // Mark parent as decomposed
+                    OriginalTask.IsDecomposed = true;
+                    OriginalTask.DecompositionStrategy = suggestion.Strategy.ToString();
+                    await _databaseService.SaveTaskSpecAsync(OriginalTask);
+
+                    MessageBox.Show($"Successfully created {subtasks.Count} subtasks!", "Decomposition Complete",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+
+                    LoggingService.LogInfo($"Manual decomposition completed for task #{OriginalTask.Number} - {subtasks.Count} subtasks created", "TaskDetailViewModel");
+                }
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Task complexity: {suggestion.ComplexityScore}/100\n\n" +
+                    $"{suggestion.Reason}\n\n" +
+                    "This task is not complex enough to benefit from decomposition.",
+                    "No Decomposition Needed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                LoggingService.LogInfo($"Task #{OriginalTask.Number} does not need decomposition - {suggestion.Reason}", "TaskDetailViewModel");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"Failed to suggest decomposition for task #{OriginalTask?.Number}", ex, "TaskDetailViewModel");
+            MessageBox.Show($"Failed to analyze task complexity: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

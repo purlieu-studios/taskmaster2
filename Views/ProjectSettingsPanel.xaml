@@ -1,0 +1,358 @@
+<UserControl x:Class="TaskMaster.Views.ProjectSettingsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#1A1F2E">
+
+    <UserControl.Resources>
+        <!-- Design System Colors -->
+        <SolidColorBrush x:Key="CardBackground" Color="#1A1F2E"/>
+        <SolidColorBrush x:Key="ElevatedSurface" Color="#252A37"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#3A3F4B"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#F9FAFB"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#D1D5DB"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#9CA3AF"/>
+
+        <!-- Gradient Brushes -->
+        <LinearGradientBrush x:Key="PurplePinkGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#7C3AED" Offset="0"/>
+            <GradientStop Color="#EC4899" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- Modern TextBox Style -->
+        <Style x:Key="SettingsTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource ElevatedSurface}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false"
+                                        HorizontalScrollBarVisibility="Hidden"
+                                        VerticalScrollBarVisibility="Hidden"
+                                        Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#EC4899"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Action Button Style -->
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource ElevatedSurface}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#7C3AED"/>
+                                <Setter Property="Background" TargetName="border" Value="#2D3748"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" TargetName="border" Value="#374151"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Primary Action Button -->
+        <Style x:Key="PrimaryActionButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PurplePinkGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                CornerRadius="6">
+                            <Border.Effect>
+                                <DropShadowEffect ShadowDepth="0" Color="#7C3AED" Opacity="0.3" BlurRadius="12"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Effect" TargetName="border">
+                                    <Setter.Value>
+                                        <DropShadowEffect ShadowDepth="0" Color="#EC4899" Opacity="0.4" BlurRadius="16"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Info Card Style -->
+        <Style x:Key="InfoCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource ElevatedSurface}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,12"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="{StaticResource CardBackground}"
+            BorderBrush="#374151"
+            BorderThickness="1,0,0,0">
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="0" Color="#000000" Opacity="0.3" BlurRadius="20"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Height="80" Background="#0F1419">
+                <Grid Margin="24,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="⚙️" FontSize="20" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Project Settings"
+                                       FontSize="18"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding SelectedProject.Name, StringFormat='Managing {0}'}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextMuted}"
+                                   Visibility="{Binding SelectedProject, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Content="✕"
+                            Width="32"
+                            Height="32"
+                            Command="{Binding CloseProjectSettingsCommand}"
+                            Style="{StaticResource ActionButton}"
+                            ToolTip="Close Settings"/>
+                </Grid>
+            </Border>
+
+            <!-- Content -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,20">
+                <StackPanel>
+                    <!-- Project Information -->
+                    <StackPanel Margin="0,0,0,32">
+                        <TextBlock Text="PROJECT INFORMATION"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextMuted}"
+                                   Margin="0,0,0,12"/>
+
+                        <!-- Project Name -->
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="Project Name"
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding SelectedProject.Name, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource SettingsTextBox}"/>
+                        </StackPanel>
+
+                        <!-- Project Directory -->
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="Project Directory"
+                                       FontWeight="Medium"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       Margin="0,0,0,6"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding SelectedProject.ProjectDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource SettingsTextBox}"/>
+                                <Button Grid.Column="1"
+                                        Content="📁 Browse"
+                                        Width="90"
+                                        Margin="8,0,0,0"
+                                        Command="{Binding BrowseProjectDirectoryCommand}"
+                                        Style="{StaticResource ActionButton}"/>
+                            </Grid>
+                            <TextBlock Text="Directory path for comprehensive project analysis and AI context generation"
+                                       FontSize="11"
+                                       Foreground="{StaticResource TextMuted}"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Analysis Statistics -->
+                    <StackPanel Margin="0,0,0,32">
+                        <TextBlock Text="ANALYSIS STATISTICS"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextMuted}"
+                                   Margin="0,0,0,12"/>
+
+                        <Border Style="{StaticResource InfoCard}" Margin="0,0,0,16">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="Files Analyzed"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontSize="13"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding SelectedProject.FilesAnalyzedCount, FallbackValue='0'}"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontWeight="Medium"
+                                           FontSize="13"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="Last Analysis"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontSize="13"
+                                           Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                           Text="{Binding SelectedProject.LastAnalysisDate, FallbackValue='Never'}"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontWeight="Medium"
+                                           FontSize="13"
+                                           Margin="0,8,0,0"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                           Text="Total Tasks"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontSize="13"
+                                           Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1"
+                                           Text="{Binding SelectedProject.TaskCount}"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontWeight="Medium"
+                                           FontSize="13"
+                                           Margin="0,8,0,0"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0"
+                                           Text="Next Task Number"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontSize="13"
+                                           Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1"
+                                           Text="{Binding SelectedProject.NextNumber}"
+                                           Foreground="{StaticResource TextPrimary}"
+                                           FontWeight="Medium"
+                                           FontSize="13"
+                                           Margin="0,8,0,0"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Actions -->
+                    <StackPanel Margin="0,0,0,24">
+                        <TextBlock Text="ACTIONS"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextMuted}"
+                                   Margin="0,0,0,12"/>
+
+                        <StackPanel>
+                            <Button Content="🔄 Refresh Analysis"
+                                    Command="{Binding RefreshProjectAnalysisCommand}"
+                                    Style="{StaticResource PrimaryActionButton}"
+                                    HorizontalAlignment="Stretch"
+                                    Margin="0,0,0,8"/>
+
+                            <Button Content="🗑️ Clear Cache"
+                                    Command="{Binding ClearProjectCacheCommand}"
+                                    Style="{StaticResource ActionButton}"
+                                    HorizontalAlignment="Stretch"
+                                    Margin="0,0,0,8"/>
+
+                            <Button Content="💾 Save Changes"
+                                    Command="{Binding SaveProjectChangesCommand}"
+                                    Style="{StaticResource PrimaryActionButton}"
+                                    HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Help Information -->
+                    <Border Background="#7C3AED"
+                            CornerRadius="8"
+                            Padding="16"
+                            Opacity="0.1">
+                        <StackPanel>
+                            <TextBlock Text="💡 Tips"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimary}"
+                                       FontSize="13"
+                                       Margin="0,0,0,8"/>
+                            <TextBlock Text="• Use 'Refresh Analysis' after making significant changes to your project"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="12"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="• 'Clear Cache' removes all analyzed file data for a fresh start"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="12"
+                                       Margin="0,0,0,4"/>
+                            <TextBlock Text="• The AI uses analyzed files to provide better context for task generation"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</UserControl>
